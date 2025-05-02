@@ -1,13 +1,16 @@
 import math
+from .config import MOVE_SPEED, ROT_SPEED
 
 class Player:
     """Player state and movement."""
-    def __init__(self, x=3.0, y=3.0, angle=0.0, move_speed=0.5, rot_speed=2.0):
+    def __init__(self, x=3.0, y=3.0, angle=0.0,
+                 move_speed=MOVE_SPEED,
+                 rot_speed=ROT_SPEED):
         """
         Initialize the player.
         x, y: starting position in map blocks (floats allowed).
         angle: facing direction in radians.
-        move_speed: movement speed in blocks per second (default 0.5 for smoother motion).
+        move_speed: movement speed in blocks per second.
         rot_speed: rotation speed in radians per second.
         """
         self.x = x

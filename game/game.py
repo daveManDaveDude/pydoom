@@ -4,6 +4,7 @@ import pygame
 from .world import World
 from .player import Player
 from .renderer import Renderer
+from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -11,17 +12,26 @@ class Game:
         # Initialize Pygame and its subsystems
         pygame.init()
         # Screen setup
-        self.screen_width = 800
-        self.screen_height = 600
+        self.screen_width = SCREEN_WIDTH
+        self.screen_height = SCREEN_HEIGHT
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Doom-Like Prototype")
         # Clock for frame rate
         self.clock = pygame.time.Clock()
+        # Target frames per second
+        self.fps = FPS
         # World and Player
         self.world = World()
-        self.player = Player(x=3.0, y=3.0, angle=0.0)
+        self.player = Player(x=3.0,
+                             y=3.0,
+                             angle=0.0,
+                             move_speed=MOVE_SPEED,
+                             rot_speed=ROT_SPEED)
         # Renderer
-        self.renderer = Renderer(self.screen_width, self.screen_height)
+        self.renderer = Renderer(self.screen_width,
+                                 self.screen_height,
+                                 fov=FOV,
+                                 step_size=STEP_SIZE)
         # Control flag
         self.running = True
 
@@ -53,7 +63,8 @@ class Game:
     def run(self):
         """Main loop: handle events, update, and render."""
         while self.running:
-            dt = self.clock.tick(60) / 1000.0
+            # Cap the frame rate and compute delta time in seconds
+            dt = self.clock.tick(self.fps) / 1000.0
             self.handle_events()
             self.update(dt)
             self.render()

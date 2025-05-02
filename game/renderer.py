@@ -1,5 +1,6 @@
 import math
 import pygame
+from .config import CEILING_COLOR, FLOOR_COLOR, WALL_SHADE_X, WALL_SHADE_Y
 
 class Renderer:
     """Renderer for drawing the 3D view using raycasting."""
@@ -23,16 +24,19 @@ class Renderer:
 
     def render(self, screen, world, player):
         """Render ceiling, floor, and walls."""
-        # Draw ceiling (dark) and floor (lighter)
-        screen.fill((30, 30, 30), (0, 0, self.screen_width, self.screen_height // 2))
-        screen.fill((50, 50, 50), (0, self.screen_height // 2, self.screen_width, self.screen_height // 2))
+        # Draw ceiling and floor
+        screen.fill(CEILING_COLOR,
+                    (0, 0, self.screen_width, self.screen_height // 2))
+        screen.fill(FLOOR_COLOR,
+                    (0, self.screen_height // 2,
+                     self.screen_width, self.screen_height // 2))
         # Pre-calculate values for performance
         cos_pa = math.cos(player.angle)
         sin_pa = math.sin(player.angle)
         map_grid = world.map
         draw_line = pygame.draw.line
-        shade_x = (100, 100, 100)
-        shade_y = (70, 70, 70)
+        shade_x = WALL_SHADE_X
+        shade_y = WALL_SHADE_Y
         # Raycasting using DDA with precomputed angle offsets
         for ray in range(self.num_rays):
             cos_off = self.cos_offsets[ray]
