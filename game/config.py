@@ -32,6 +32,8 @@ MAX_PITCH = SCREEN_HEIGHT // 2
 # Texture settings
 # Filename of the floor texture (located in game/textures directory)
 FLOOR_TEXTURE_FILE = 'cracked_stone_floor.png'
+# World file: JSON definition of the map layout
+WORLD_FILE = 'worlds/default.json'
 # Filename of the ceiling texture (located in game/textures directory)
 CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
 # Filename of the wall texture (located in game/textures directory)
