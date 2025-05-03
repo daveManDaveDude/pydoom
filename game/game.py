@@ -14,7 +14,11 @@ class Game:
         # Screen setup
         self.screen_width = SCREEN_WIDTH
         self.screen_height = SCREEN_HEIGHT
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        # Initialize an OpenGL-enabled window
+        self.screen = pygame.display.set_mode(
+            (self.screen_width, self.screen_height),
+            pygame.OPENGL | pygame.DOUBLEBUF
+        )
         pygame.display.set_caption("Doom-Like Prototype")
         # Hide mouse cursor and capture it for relative motion
         pygame.mouse.set_visible(False)
@@ -33,10 +37,14 @@ class Game:
                              move_speed=MOVE_SPEED,
                              rot_speed=ROT_SPEED)
         # Renderer
-        self.renderer = Renderer(self.screen_width,
-                                 self.screen_height,
-                                 fov=FOV,
-                                 step_size=STEP_SIZE)
+        # Pass world into renderer for wall raycasting
+        self.renderer = Renderer(
+            self.screen_width,
+            self.screen_height,
+            fov=FOV,
+            step_size=STEP_SIZE,
+            world=self.world
+        )
         # Control flag
         self.running = True
 
@@ -73,8 +81,8 @@ class Game:
 
     def render(self):
         """Render the entire scene."""
+        # Delegate drawing to OpenGL renderer (which swaps buffers internally)
         self.renderer.render(self.screen, self.world, self.player)
-        pygame.display.flip()
 
     def run(self):
         """Main loop: handle events, update, and render."""

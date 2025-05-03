@@ -29,3 +29,10 @@ MOUSE_SENSITIVITY = 0.003
 MOUSE_SENSITIVITY_Y = 1.0
 # Maximum vertical look offset (horizon shift) in pixels: allow up to half screen (~±25°)
 MAX_PITCH = SCREEN_HEIGHT // 2
+# Texture settings
+# Filename of the floor texture (located in game/textures directory)
+FLOOR_TEXTURE_FILE = 'cracked_stone_floor.png'
+# Filename of the ceiling texture (located in game/textures directory)
+CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
+# Filename of the wall texture (located in game/textures directory)
+WALL_TEXTURE_FILE = 'brick_wall.png'
