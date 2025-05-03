@@ -24,12 +24,14 @@ class Renderer:
 
     def render(self, screen, world, player):
         """Render ceiling, floor, and walls."""
-        # Draw ceiling and floor
+        # Draw ceiling and floor relative to current pitch (horizon)
+        mid_y = int(self.screen_height // 2 + player.pitch)
+        mid_y = max(0, min(self.screen_height, mid_y))
         screen.fill(CEILING_COLOR,
-                    (0, 0, self.screen_width, self.screen_height // 2))
+                    (0, 0, self.screen_width, mid_y))
         screen.fill(FLOOR_COLOR,
-                    (0, self.screen_height // 2,
-                     self.screen_width, self.screen_height // 2))
+                    (0, mid_y,
+                     self.screen_width, self.screen_height - mid_y))
         # Pre-calculate values for performance
         cos_pa = math.cos(player.angle)
         sin_pa = math.sin(player.angle)
@@ -79,7 +81,8 @@ class Renderer:
             perp_distance = ray_dist * cos_off
             perp_distance = max(perp_distance, 0.0001)
             slice_height = int(self.proj_plane_dist / perp_distance)
-            start_y = max(0, (self.screen_height // 2) - (slice_height // 2))
-            end_y = min(self.screen_height, (self.screen_height // 2) + (slice_height // 2))
+            mid_y = int(self.screen_height // 2 + player.pitch)
+            start_y = max(0, mid_y - (slice_height // 2))
+            end_y = min(self.screen_height, mid_y + (slice_height // 2))
             color = shade_x if side == 0 else shade_y
             draw_line(screen, color, (ray, start_y), (ray, end_y))

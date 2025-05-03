@@ -18,11 +18,24 @@ class Player:
         self.angle = angle
         self.move_speed = move_speed
         self.rot_speed = rot_speed
+        # Vertical look (pitch), offset in pixels
+        self.pitch = 0.0
 
     def move(self, direction, world, dt):
         """Move the player forward (direction=1) or backward (direction=-1)."""
         dx = math.cos(self.angle) * self.move_speed * dt * direction
         dy = math.sin(self.angle) * self.move_speed * dt * direction
+        new_x = self.x + dx
+        new_y = self.y + dy
+        if not world.is_wall(new_x, new_y):
+            self.x = new_x
+            self.y = new_y
+    
+    def strafe(self, direction, world, dt):
+        """Strafe the player right (direction=1) or left (direction=-1)."""
+        # Perpendicular direction vector (right-handed)
+        dx = -math.sin(self.angle) * self.move_speed * dt * direction
+        dy =  math.cos(self.angle) * self.move_speed * dt * direction
         new_x = self.x + dx
         new_y = self.y + dy
         if not world.is_wall(new_x, new_y):
