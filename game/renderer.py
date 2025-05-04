@@ -184,77 +184,76 @@ void main() {
         # Walls pass
         glDisable(GL_BLEND)
         self.wall_renderer.render(world, player)
-        # Sprite pass: render fixed planar sprite in perspective
+        # Sprite pass: render planar sprite at world-defined orientation
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        # Define sprite size in world units: height and width (aspect preserved)
+        # Sprite world size: height and width preserving texture aspect
         world_h = 0.25
         aspect = float(self.sprite_width) / float(self.sprite_height)
         world_w = world_h * aspect
-        half_w = world_w / 2.0
+        half_w = world_w * 0.5
         inv_w = 1.0 / (self.w - 1.0)
         inv_h = 1.0 / (self.h - 1.0)
-        mid_y = self.h / 2.0 + player.pitch
+        mid_y = self.h * 0.5 + player.pitch
         depth = self.wall_renderer.depth_buffer
-        cos_pa = math.cos(player.angle)
-        sin_pa = math.sin(player.angle)
-        fx, fy = cos_pa, sin_pa
-        rx, ry = -sin_pa, cos_pa
-        cols = []
-        if world.powerup:
-            pxw, pyw = world.powerup
+        if world.powerup_pos:
+            pxw, pyw = world.powerup_pos
+            ang_p = world.powerup_angle
+            # Plane normal and tangent
+            n_x = math.cos(ang_p); n_y = math.sin(ang_p)
+            t_x = -n_y; t_y = n_x
+            px0, py0 = player.x, player.y
+            cols = []
             for col in range(self.w):
-                ang = -self.half_fov + col * (self.fov / self.w)
-                dx = cos_pa * math.cos(ang) - sin_pa * math.sin(ang)
-                dy = sin_pa * math.cos(ang) + cos_pa * math.sin(ang)
-                if abs(dx) < 1e-6:
-                    continue
-                t = (pxw - player.x) / dx
-                if t <= 0:
-                    continue
-                y_hit = player.y + t * dy
-                if abs(y_hit - pyw) > half_w:
-                    continue
-                perp = t * math.cos(ang)
-                if perp <= 0 or perp >= depth[col]:
-                    continue
-                # Projected slice height (pixels) based on world height
+                ang_off = -self.half_fov + col * (self.fov / self.w)
+                r_dx = math.cos(player.angle) * math.cos(ang_off) - math.sin(player.angle) * math.sin(ang_off)
+                r_dy = math.sin(player.angle) * math.cos(ang_off) + math.cos(player.angle) * math.sin(ang_off)
+                denom = n_x * r_dx + n_y * r_dy
+                if abs(denom) < 1e-6: continue
+                num = n_x * (pxw - px0) + n_y * (pyw - py0)
+                t_dist = num / denom
+                if t_dist <= 0: continue
+                perp = t_dist * math.cos(ang_off)
+                if perp <= 0 or perp >= depth[col]: continue
+                # Intersection on plane
+                hx = px0 + r_dx * t_dist
+                hy = py0 + r_dy * t_dist
+                proj = (hx - pxw) * t_x + (hy - pyw) * t_y
+                if abs(proj) > half_w: continue
+                u = (proj + half_w) / world_w
                 sl_h = (self.proj_plane_dist / perp) * world_h
-                y0 = mid_y - sl_h / 2.0
-                y1 = mid_y + sl_h / 2.0
-                # Texture U coordinate proportional to hit position on sprite width
-                u = (y_hit - (pyw - half_w)) / world_w
-                x0 = col * inv_w * 2.0 - 1.0
-                x1 = (col + 1) * inv_w * 2.0 - 1.0
+                y0 = mid_y - sl_h * 0.5; y1 = mid_y + sl_h * 0.5
+                x0_ndc = col * inv_w * 2.0 - 1.0
+                x1_ndc = (col + 1) * inv_w * 2.0 - 1.0
                 y0_ndc = y0 * inv_h * 2.0 - 1.0
                 y1_ndc = y1 * inv_h * 2.0 - 1.0
-                cols += [
-                    [x0, y1_ndc, u, 1.0],
-                    [x0, y0_ndc, u, 0.0],
-                    [x1, y0_ndc, u, 0.0],
-                    [x1, y0_ndc, u, 0.0],
-                    [x1, y1_ndc, u, 1.0],
-                    [x0, y1_ndc, u, 1.0],
-                ]
-        if cols:
-            sprite_verts = __import__('numpy').array(cols, dtype=__import__('numpy').float32)
-            self.wall_tex_shader.use()
-            glBindBuffer(GL_ARRAY_BUFFER, self.sprite_vbo)
-            glBufferData(GL_ARRAY_BUFFER, sprite_verts.nbytes, sprite_verts, GL_DYNAMIC_DRAW)
-            stride = sprite_verts.strides[0]
-            glEnableVertexAttribArray(self.wall_pos2Attr)
-            glVertexAttribPointer(self.wall_pos2Attr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(self.wall_uvAttr)
-            glVertexAttribPointer(self.wall_uvAttr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(8))
-            glActiveTexture(GL_TEXTURE0)
-            glBindTexture(GL_TEXTURE_2D, self.sprite_tex)
-            glUniform1i(self.uWallTexLoc, 0)
-            glDrawArrays(GL_TRIANGLES, 0, len(cols))
-            glDisableVertexAttribArray(self.wall_pos2Attr)
-            glDisableVertexAttribArray(self.wall_uvAttr)
-            glBindBuffer(GL_ARRAY_BUFFER, 0)
-            glBindTexture(GL_TEXTURE_2D, 0)
-            self.wall_tex_shader.stop()
+                cols.extend([
+                    [x0_ndc, y1_ndc, u, 1.0],
+                    [x0_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y1_ndc, u, 1.0],
+                    [x0_ndc, y1_ndc, u, 1.0],
+                ])
+            if cols:
+                sprite_verts = __import__('numpy').array(cols, dtype=__import__('numpy').float32)
+                self.wall_tex_shader.use()
+                glBindBuffer(GL_ARRAY_BUFFER, self.sprite_vbo)
+                glBufferData(GL_ARRAY_BUFFER, sprite_verts.nbytes, sprite_verts, GL_DYNAMIC_DRAW)
+                stride = sprite_verts.strides[0]
+                glEnableVertexAttribArray(self.wall_pos2Attr)
+                glVertexAttribPointer(self.wall_pos2Attr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
+                glEnableVertexAttribArray(self.wall_uvAttr)
+                glVertexAttribPointer(self.wall_uvAttr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(8))
+                glActiveTexture(GL_TEXTURE0)
+                glBindTexture(GL_TEXTURE_2D, self.sprite_tex)
+                glUniform1i(self.uWallTexLoc, 0)
+                glDrawArrays(GL_TRIANGLES, 0, len(cols))
+                glDisableVertexAttribArray(self.wall_pos2Attr)
+                glDisableVertexAttribArray(self.wall_uvAttr)
+                glBindBuffer(GL_ARRAY_BUFFER, 0)
+                glBindTexture(GL_TEXTURE_2D, 0)
+                self.wall_tex_shader.stop()
         # UI overlay: render text quad
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

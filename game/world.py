@@ -6,7 +6,8 @@ class World:
     """World map representation loaded from external file (default) or provided grid."""
     def __init__(self, map_grid=None):
         # Initialize map and other world attributes
-        self.powerup = None
+        self.powerup_pos = None
+        self.powerup_angle = 0.0
         if map_grid is not None:
             self.map = map_grid
         else:
@@ -16,10 +17,21 @@ class World:
                 with open(world_path, 'r') as f:
                     data = json.load(f)
                 self.map = data.get('map', [])
-                # Load powerup position if specified
+                # Load powerup attributes if specified
                 pu = data.get('powerup')
-                if isinstance(pu, (list, tuple)) and len(pu) == 2:
-                    self.powerup = (float(pu[0]), float(pu[1]))
+                # If powerup specified as dict with pos and angle
+                if isinstance(pu, dict):
+                    pos = pu.get('pos')
+                    if isinstance(pos, (list, tuple)) and len(pos) == 2:
+                        self.powerup_pos = (float(pos[0]), float(pos[1]))
+                    ang = pu.get('angle')
+                    try:
+                        self.powerup_angle = float(ang)
+                    except Exception:
+                        pass
+                # Legacy: powerup as simple [x, y]
+                elif isinstance(pu, (list, tuple)) and len(pu) == 2:
+                    self.powerup_pos = (float(pu[0]), float(pu[1]))
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)

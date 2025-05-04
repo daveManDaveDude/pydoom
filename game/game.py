@@ -4,7 +4,7 @@ import pygame
 from .world import World
 from .player import Player
 from .renderer import Renderer
-from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH
+from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -78,6 +78,9 @@ class Game:
             self.player.strafe(-1, self.world, dt)
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
             self.player.strafe(1, self.world, dt)
+        # Rotate powerup sprite
+        if hasattr(self.world, 'powerup_angle') and self.world.powerup_angle is not None:
+            self.world.powerup_angle += SPRITE_ROT_SPEED * dt
 
     def render(self):
         """Render the entire scene."""
