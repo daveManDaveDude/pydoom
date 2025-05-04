@@ -63,11 +63,13 @@ class CpuWallRenderer(WallRenderer):
                 if world.map[map_y][map_x]:
                     hit = True
             # Calculate perpendicular distance
+            # Distance from player to wall along the ray (before fisheye correction)
             if side == 0:
-                perp = (map_x - player.x + (1 - step_x) / 2) / dir_x
+                dist = (map_x - player.x + (1 - step_x) / 2) / dir_x
             else:
-                perp = (map_y - player.y + (1 - step_y) / 2) / dir_y
-            perp *= math.cos(angle_off)
+                dist = (map_y - player.y + (1 - step_y) / 2) / dir_y
+            # Correct distance to avoid fish-eye effect
+            perp = dist * math.cos(angle_off)
             perp = max(perp, 1e-3)
             # Wall slice height in pixels
             slice_h = int(self.proj_plane_dist / perp)
@@ -83,10 +85,11 @@ class CpuWallRenderer(WallRenderer):
             x0_ndc = (i * inv_w) * 2.0 - 1.0
             x1_ndc = ((i + 1) * inv_w) * 2.0 - 1.0
             # Texture coordinate (u) based on wall hit position
+            # Calculate exact hit position on the wall for texture coordinate using raw distance
             if side == 0:
-                wallX = player.y + perp * dir_y
+                wallX = player.y + dist * dir_y
             else:
-                wallX = player.x + perp * dir_x
+                wallX = player.x + dist * dir_x
             u = wallX - math.floor(wallX)
             # Two triangles per slice
             verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]; idx += 1
