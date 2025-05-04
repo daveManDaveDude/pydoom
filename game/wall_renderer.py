@@ -30,8 +30,6 @@ class CpuWallRenderer(WallRenderer):
         self.vbo = glGenBuffers(1)
 
     def render(self, world, player):
-        # Initialize depth buffer (perpendicular distances) for sprite occlusion
-        self.depth_buffer = np.zeros(self.w, dtype=np.float32)
         # Prepare vertex buffer: each wall slice is two triangles (6 verts) with (x,y,u,v)
         verts_uv = np.zeros((self.w * 6, 4), dtype=np.float32)
         idx = 0
@@ -73,8 +71,6 @@ class CpuWallRenderer(WallRenderer):
             # Correct distance to avoid fish-eye effect
             perp = dist * math.cos(angle_off)
             perp = max(perp, 1e-3)
-            # Record perpendicular distance for this column
-            self.depth_buffer[i] = perp
             # Wall slice height in pixels
             slice_h = int(self.proj_plane_dist / perp)
             # Vertical slice extents (centered and taking pitch into account)

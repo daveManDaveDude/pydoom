@@ -1,15 +1,12 @@
 import os
 import json
 from .config import WORLD_FILE
-from .sprite import Sprite
 
 class World:
     """World map representation loaded from external file (default) or provided grid."""
     def __init__(self, map_grid=None):
         if map_grid is not None:
             self.map = map_grid
-            # No sprite objects when using raw grid
-            self.objects = []
         else:
             # Load map from JSON file
             world_path = os.path.join(os.path.dirname(__file__), WORLD_FILE)
@@ -17,13 +14,6 @@ class World:
                 with open(world_path, 'r') as f:
                     data = json.load(f)
                 self.map = data.get('map', [])
-                # Load sprite/object spawns from JSON
-                # Load sprite/object spawns with optional orientation
-                self.objects = []
-                for o in data.get('objects', []):
-                    if 'x' in o and 'y' in o and 'type' in o:
-                        angle = float(o.get('angle', 0.0))
-                        self.objects.append(Sprite(o['x'], o['y'], o['type'], angle))
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)

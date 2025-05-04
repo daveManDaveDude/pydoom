@@ -38,11 +38,3 @@ WORLD_FILE = 'worlds/default.json'
 CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
 # Filename of the wall texture (located in game/textures directory)
 WALL_TEXTURE_FILE = 'brick_wall.png'
-  
-# Sprite texture mapping: keys are sprite types, values are filenames in game/textures
-SPRITE_TEXTURES = {
-    # Example: health pickup placeholder
-    'pickup_health': 'metal_wall.png'
-}
-# Global scale factor for all sprites (1.0 = full size, <1.0 to shrink)
-SPRITE_SCALE = 0.25
