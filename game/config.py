@@ -38,3 +38,5 @@ WORLD_FILE = 'worlds/default.json'
 CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
 # Filename of the wall texture (located in game/textures directory)
 WALL_TEXTURE_FILE = 'brick_wall.png'
+# Filename of the sprite to render (located in game/textures directory)
+SPRITE_TEXTURE_FILE = 'metal_wall.png'

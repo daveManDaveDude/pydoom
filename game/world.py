@@ -5,15 +5,21 @@ from .config import WORLD_FILE
 class World:
     """World map representation loaded from external file (default) or provided grid."""
     def __init__(self, map_grid=None):
+        # Initialize map and other world attributes
+        self.powerup = None
         if map_grid is not None:
             self.map = map_grid
         else:
-            # Load map from JSON file
+            # Load map and other attributes from JSON file
             world_path = os.path.join(os.path.dirname(__file__), WORLD_FILE)
             try:
                 with open(world_path, 'r') as f:
                     data = json.load(f)
                 self.map = data.get('map', [])
+                # Load powerup position if specified
+                pu = data.get('powerup')
+                if isinstance(pu, (list, tuple)) and len(pu) == 2:
+                    self.powerup = (float(pu[0]), float(pu[1]))
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)
