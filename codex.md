@@ -1,44 +1,43 @@
-Stage 1 Prototype: Basic 3D Rendering and Navigation (Detailed Plan)
+Current project status
+    •  Window, input, game loop, world-loader, player and collision all wired up.
+    •  OpenGL renderer that
+      – draws a textured floor & ceiling in a single full-screen shader pass
+      – raycasts walls on the CPU (DDA) and renders them as textured GL_TRIANGLES
+      – overlays simple UI text
+    •  Configuration (FOV, speeds, textures, JSON map) is all externalized
 
-In this first stage, you will create a minimal working game where a player can move in a 3D maze. The main tasks include setting up Pygame, implementing a raycasting renderer for walls, and enabling player movement with collision. Use Codex at each step to generate and refine the code. Here is a step-by-step plan: 1. Set Up a Pygame Window and Game Loop
-Goal: Create a window where the game will be rendered, and establish the main loop to continuously update and draw the scene.
-Action: In the Codex CLI, prompt it to generate a basic Pygame program skeleton. For example, you might write: “Initialize a Pygame window (e.g., 800x600), and implement a main loop that clears the screen and listens for quit events.” Codex should produce code to pygame.init(), set a display mode, and handle the game loop with event checking for QUIT.
-Result: You get a Python script that opens an 800x600 window (you can specify a title like “Doom-Like Prototype”). The loop should be running at a fixed frame rate (you can ask Codex to use pygame.time.Clock() to cap FPS, e.g., 60). Verify this by running the code: a window should appear and close properly when you click the close button. (If anything is off – e.g., window not closing – refine the code or prompt. Since you’re new to Python, pay attention to how Codex uses indentation and Pygame functions. This is a good point to ensure you have Pygame installed and working.)
-2. Define the World Map and Player
-Goal: Represent a simple 3D level for the player to navigate, and track the player’s position and viewing direction.
-Action: Design a small map layout (like a grid of cells). For instance, use a 2D array (list of lists in Python) where 1 indicates a wall and 0 indicates empty space/floor. A simple map could be a room or a maze with a few walls. Prompt Codex to create this. For example: “Create a 2D list called world_map that represents a 10x10 grid with walls (1) forming a simple maze or room. Also define a player_x, player_y for player position (in grid units) and a player_angle for the viewing direction.”
-Details: You might hard-code the map for now (e.g., a list of strings or numbers). Place the player somewhere in the open area. The player_angle (in radians or degrees) will be used to cast rays and to rotate the view when the player turns.
-Result: Codex should output a world_map structure (perhaps a matrix of 0/1) and variables for player state. For example, player_x, player_y = 3.0, 3.0 and player_angle = 0. Ensure the map has boundary walls (so the player can’t leave the area). Keep the scale convention (e.g., 1 unit in the map = 1 block in game world).
-Tip: Make sure to choose a consistent unit (you can treat each grid cell as, say, a 1x1 square in world coordinates). Later, movement speed will be in these units per second, etc.
-3. Implement the Raycasting Renderer
-Goal: Draw a 3D projection of the world from the player’s perspective. Using raycasting, the program will shoot out “rays” from the player’s eye and determine how far they go before hitting a wall. Each ray corresponds to a vertical slice on the screen, creating the illusion of walls in 3D​
-pygame.org
-.
-Action: This is the core of the prototype. Prompt Codex to help create a function (or code block) to perform the raycasting and draw the scene each frame. For example, you might instruct: “Using the world_map, write a function render_3d_view(player_x, player_y, player_angle) that uses a raycasting technique (like Wolfenstein 3D) to draw walls. Use a simple color (e.g., gray) for walls. Cast one ray per column of the screen (for an 800px wide screen, 800 rays) within a 60° field of view. Compute distance to the nearest wall for each ray, correct for fish-eye distortion by using the perpendicular distance, and draw a vertical line (column) at that screen x position with a height proportional to 1/distance.”
-Details: The key points to include in your prompt or to verify in Codex’s output:
-Iterate over each column (or a subset for performance, but ideally 1 ray per pixel for best fidelity).
-Calculate the ray angle for each column relative to player_angle (spanning a field-of-view, e.g. 60° or 90°).
-Step the ray forward in small increments (or use DDA algorithm) until it hits a wall (world_map cell == 1).
-Measure the distance from player to wall hit. Adjust the distance by the cosine of the ray’s offset from the center angle (to avoid fish-eye distortion).
-Calculate line height = (constant_factor / distance), where constant_factor could be, for example, screen_height or a multiple thereof, to make walls of a reasonable height. (Codex might choose a formula; you can adjust it for proper perspective.)
-Draw a vertical rectangle or line on that column with that height, centered vertically (so it extends up and down from the middle of the screen). Use pygame.draw.line or draw on a surface representing the column. A simple solid color (like gray or brown) can represent all walls for now.
-Result: Codex should generate a code snippet for the rendering logic. Likely it will use math.sin, math.cos for ray directions, and a loop for the rays. Review the code carefully. As a seasoned dev, verify the math logic (even if you’re new to Python, check if the approach makes sense). Test it by calling the render function inside the game loop (each frame) and updating the display. When you run the game now, you should see a pseudo-3D view of your maze: moving stripes that represent walls. For example, facing a wall should show a vertical colored rectangle; an open corridor should show distant walls appearing smaller.
-Troubleshooting: It’s possible the first attempt isn’t perfect. You might see a fisheye effect or wrong scale – if so, adjust how the perpendicular distance is computed or the projection formula (you can prompt Codex with something like: “Fix the fisheye distortion by using perpendicular distance (distance * cos(angle_difference)) in the projection calculation.”). If the performance is too slow (raycasting in Python can be heavy), you can lower resolution (e.g., cast fewer rays than screen width, or only update every few frames) for now, or ask Codex for optimizations (like using NumPy). But since the world is small, it should run okay at ~30-60 FPS in a modern machine​
-pygame.org
-.
-4. Add Player Movement and Controls
-Goal: Allow the player to navigate the world using keyboard input – move forward/backward and turn left/right – while preventing walking through walls.
-Action: Prompt Codex to implement movement in the game loop based on input. For example: “Handle user input: when W or Up is pressed, move the player forward (in the direction they are facing); S or Down to move backward; A or Left to rotate view left; D or Right to rotate right. Implement collision detection so the player cannot go through walls (i.e., before moving, check the target position in world_map is not a wall). Use a reasonable move speed and turn speed (e.g., moving 0.1 units per frame, turning 3° per frame – and scale by delta time if using frame timing).”
-Details: Ensure Codex reads the pygame.event.get() or pygame.key.get_pressed() to capture key presses each frame. For turning, it should adjust player_angle. For moving, use the angle to update player_x and player_y (e.g., player_x += cos(player_angle)*speed, player_y += sin(player_angle)*speed for forward, and subtract for backward). Before finalizing a move, check the cell in world_map corresponding to the new position; if it’s a wall (1), then don’t allow the move (or slide along it, but that’s an extra). Implementing simple collision by halting movement into walls is sufficient for now.
-Result: After Codex produces the movement code, test it. Run the game and use WASD/arrow keys. You should be able to walk around. Try moving into a wall – you should stop and not pass through. Turn left/right and see the view rotate accordingly. At this point, you have a basic “walking simulator” in a 3D maze.
-Troubleshooting: If movement isn’t working right, adjust. For example, if moving is too fast or slow, tweak the speed constant. If the turning is in radians vs degrees confusion, ensure consistency (Codex might choose one; just stick to one system, usually radians for trig in Python). If collision is not detected correctly, check that Codex is converting player’s float position to map grid index correctly (you may need int(player_x) and int(player_y) to index the map). You can refine the prompt or code to fix these issues.
-5. Test, Refine, and Iterate
-Goal: Ensure the prototype is stable and meets the basic requirements before moving to the next stages.
-Action: Play with the prototype. Walk around the level thoroughly. Note any glitches or improvements needed. Common refinements at this point might include:
-Adjusting the field of view or resolution for a better visual (wider FOV or finer resolution for smoother walls).
-Changing wall colors or adding a second color for variety (maybe differentiate vertical vs horizontal walls if you want, or just randomize colors for each wall cell for a funky effect). You can ask Codex to implement these small enhancements easily.
-Ensuring the game loop timing is consistent (using Clock.tick() to cap FPS, if not already).
-Result: By now, you should have a working first-person perspective where you can move in a 3D-looking environment. No gameplay elements yet, but this “engine” is the foundation. Make sure the code is organized (perhaps all in one file is okay for now). Save this version of the code.
-Tip: Since you’re using Codex, consider asking it to insert comments explaining how the raycasting math works, so you can learn from it. For example, “Add comments to explain the raycasting loop and calculations.” This will help you understand the code better and is valuable for a seasoned dev picking up Python specifics. Codex can also help refactor the code into functions or a class if the main script is getting messy – but that can be done later once everything works.
-By the end of Stage 1, you have an MVP (Minimum Viable Prototype): a basic engine that renders a 3D maze and allows navigation. It’s a good checkpoint to commit your code (version control) or at least save a copy. You can now confidently move on to adding more complex features.
+    next steps
 
+        1. Sprite & object support
+           – Implement a “billboard” sprite renderer (e.g. for pickups, enemies)
+           – Extend your world-JSON format to include object spawns (x,y,type)
+           – Sort sprites by depth each frame and render as textured quads
+        2. Map & texture variety
+           – Allow different wall/floor/ceiling textures per cell (use map values >1 → texture index)
+           – Support multiple map files and a level-select menu
+        3. Mini-map / debug view
+           – Top-down 2D overlay in a corner, showing walls, player position & FOV
+           – Toggle with a key for easier level design & debugging
+        4. HUD & crosshair
+           – Draw a simple crosshair at screen center (in GL or as a 2D overlay)
+           – Show FPS, player coordinates, health/ammo bars (prepare for gameplay)
+        5. Audio & feedback
+           – Integrate Pygame’s mixer: footsteps, ambient track, weapon sounds
+           – Add a “footstep” timer based on move distance for more immersion
+        6. Doors & level interactions
+           – Define doors in the map that can open (e.g. animate a textured quad sliding up)
+           – Trigger via “use” key, with collision temporarily disabled
+        7. Basic enemy AI & combat
+           – Place simple AI agents that patrol or chase the player
+           – Implement a shooting mechanic (raycast or projectile), damage, and health
+           – Sprite-based enemies with simple finite-state logic
+        8. Performance & refactoring
+           – Move wall-casting into a GLSL shader (true GPU raymarch) or batch your CPU data better
+           – Break the code into “engine” vs “game” modules (renderers, world, entities, UI)
+           – Add unit tests for map loading, collision, raycasting math
+           – Profile hot spots (NumPy vs pure Python wall loops)
+        9. Project hygiene & packaging
+           – Add a README with controls, dependencies (Pygame, PyOpenGL, NumPy)
+           – requirements.txt / setup.py for easy installs
+           – Pre-commit hooks / CI to lint, run smoke tests
+           – Document the JSON world format (schema, examples)

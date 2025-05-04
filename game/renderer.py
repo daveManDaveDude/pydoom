@@ -12,7 +12,11 @@ except ImportError:
         "PyOpenGL is required to run this renderer. "
         "Please install via: pip install PyOpenGL PyOpenGL_accelerate"
     )
-from .config import CEILING_COLOR, WALL_SHADE_X, WALL_SHADE_Y, FLOOR_TEXTURE_FILE, CEILING_TEXTURE_FILE, WALL_TEXTURE_FILE
+from .config import (
+    CEILING_COLOR, WALL_SHADE_X, WALL_SHADE_Y,
+    FLOOR_TEXTURE_FILE, CEILING_TEXTURE_FILE, WALL_TEXTURE_FILE,
+    SPRITE_TEXTURES, SPRITE_SCALE
+)
 from .gl_utils import ShaderProgram, load_texture, setup_opengl, create_texture_from_surface
 from .wall_renderer import CpuWallRenderer
 
@@ -125,6 +129,14 @@ void main() {
             self.wall_tex, self.wall_tex_shader,
             self.wall_pos2Attr, self.wall_uvAttr, self.uWallTexLoc
         )
+        # Sprite textures mapping and VBO
+        from .config import SPRITE_TEXTURES, SPRITE_SCALE
+        self.sprite_textures = {}
+        sprites_dir = os.path.join(os.path.dirname(__file__), 'textures')
+        for key, fname in SPRITE_TEXTURES.items():
+            tex_path = os.path.join(sprites_dir, fname)
+            self.sprite_textures[key] = load_texture(tex_path)
+        self.sprite_vbo = glGenBuffers(1)
         # Prepare UI overlay text (Press Q to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
         ui_surf = self.ui_font.render("Press Q to quit", True, (255, 255, 255))
@@ -177,7 +189,117 @@ void main() {
         self.floor_shader.stop()
         # Walls pass
         glDisable(GL_BLEND)
+        # Walls pass
+        glDisable(GL_BLEND)
         self.wall_renderer.render(world, player)
+        # Sprite rendering pass (billboarded objects)
+        sprites = getattr(world, 'objects', None)
+        if sprites:
+            # Compute per-sprite distance and angle, cull and sort back-to-front
+            sprite_list = []
+            for sprite in sprites:
+                dx = sprite.x - player.x
+                dy = sprite.y - player.y
+                distance = math.hypot(dx, dy)
+                angle = math.atan2(dy, dx) - player.angle
+                # Normalize angle to [-pi, pi]
+                while angle < -math.pi:
+                    angle += 2 * math.pi
+                while angle >  math.pi:
+                    angle -= 2 * math.pi
+                # Cull sprites outside field of view
+                if abs(angle) > self.half_fov:
+                    continue
+                sprite_list.append((sprite, distance, angle))
+            # Draw sprites farthest first
+            sprite_list.sort(key=lambda s: s[1], reverse=True)
+            if sprite_list:
+                # Depth buffer from wall renderer for simple occlusion at sprite center
+                depth_buffer = getattr(self.wall_renderer, 'depth_buffer', None)
+                numpy = __import__('numpy')
+                # Use wall-texture shader
+                self.wall_tex_shader.use()
+                glBindBuffer(GL_ARRAY_BUFFER, self.sprite_vbo)
+                # Set up attribute pointers
+                stride = numpy.dtype(numpy.float32).itemsize * 4
+                glEnableVertexAttribArray(self.wall_pos2Attr)
+                glVertexAttribPointer(self.wall_pos2Attr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
+                glEnableVertexAttribArray(self.wall_uvAttr)
+                glVertexAttribPointer(self.wall_uvAttr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(8))
+                for sprite, distance, angle in sprite_list:
+                    # Per-sprite perpendicular distance
+                    perp = max(distance * math.cos(angle), 1e-3)
+                    # Occlusion check at sprite center
+                    if depth_buffer is not None:
+                        ci = int(((angle / self.half_fov + 1) * 0.5) * self.w)
+                        ci = max(0, min(self.w - 1, ci))
+                        if perp >= depth_buffer[ci]:
+                            continue
+                    # Sprite dimensions
+                    half_w = SPRITE_SCALE * 0.5
+                    height_w = SPRITE_SCALE
+                    mid = self.h * 0.5 + player.pitch
+                    inv_w = 1.0 / (self.w - 1.0)
+                    inv_h = 1.0 / (self.h - 1.0)
+                    # Sprite orientation
+                    rot = sprite.orientation
+                    rx = math.sin(rot)
+                    ry = -math.cos(rot)
+                    # World positions of corners
+                    blx = sprite.x - rx * half_w; bly = sprite.y - ry * half_w
+                    brx = sprite.x + rx * half_w; bry = sprite.y + ry * half_w
+                    # Project bottom-left
+                    dx_bl = blx - player.x; dy_bl = bly - player.y
+                    ang_bl = math.atan2(dy_bl, dx_bl) - player.angle
+                    while ang_bl < -math.pi: ang_bl += 2 * math.pi
+                    while ang_bl >  math.pi: ang_bl -= 2 * math.pi
+                    dist_bl = math.hypot(dx_bl, dy_bl)
+                    perp_bl = max(dist_bl * math.cos(ang_bl), 1e-3)
+                    slice_h_bl = self.proj_plane_dist * height_w / perp_bl
+                    px_bl = ((ang_bl / self.half_fov + 1.0) * 0.5) * self.w
+                    py_bl = mid + slice_h_bl * 0.5
+                    py_tl = mid - slice_h_bl * 0.5
+                    # Project bottom-right
+                    dx_br = brx - player.x; dy_br = bry - player.y
+                    ang_br = math.atan2(dy_br, dx_br) - player.angle
+                    while ang_br < -math.pi: ang_br += 2 * math.pi
+                    while ang_br >  math.pi: ang_br -= 2 * math.pi
+                    dist_br = math.hypot(dx_br, dy_br)
+                    perp_br = max(dist_br * math.cos(ang_br), 1e-3)
+                    slice_h_br = self.proj_plane_dist * height_w / perp_br
+                    px_br = ((ang_br / self.half_fov + 1.0) * 0.5) * self.w
+                    py_br = mid + slice_h_br * 0.5
+                    py_tr = mid - slice_h_br * 0.5
+                    # Convert to NDC
+                    x0_ndc = px_bl * inv_w * 2.0 - 1.0
+                    x1_ndc = px_br * inv_w * 2.0 - 1.0
+                    y0_ndc = py_tl * inv_h * 2.0 - 1.0
+                    y1_ndc = py_bl * inv_h * 2.0 - 1.0
+                    y2_ndc = py_tr * inv_h * 2.0 - 1.0
+                    y3_ndc = py_br * inv_h * 2.0 - 1.0
+                    # Build vertex array
+                    verts = numpy.array([
+                        [x0_ndc, y1_ndc, 0.0, 1.0],
+                        [x0_ndc, y0_ndc, 0.0, 0.0],
+                        [x1_ndc, y2_ndc, 1.0, 0.0],
+                        [x1_ndc, y2_ndc, 1.0, 0.0],
+                        [x1_ndc, y3_ndc, 1.0, 1.0],
+                        [x0_ndc, y1_ndc, 0.0, 1.0],
+                    ], dtype=numpy.float32)
+                    tex = self.sprite_textures.get(sprite.type)
+                    if tex is None:
+                        continue
+                    glBufferData(GL_ARRAY_BUFFER, verts.nbytes, verts, GL_DYNAMIC_DRAW)
+                    glActiveTexture(GL_TEXTURE0)
+                    glBindTexture(GL_TEXTURE_2D, tex)
+                    glUniform1i(self.uWallTexLoc, 0)
+                    glDrawArrays(GL_TRIANGLES, 0, 6)
+                # Cleanup
+                glDisableVertexAttribArray(self.wall_pos2Attr)
+                glDisableVertexAttribArray(self.wall_uvAttr)
+                glBindBuffer(GL_ARRAY_BUFFER, 0)
+                glBindTexture(GL_TEXTURE_2D, 0)
+                self.wall_tex_shader.stop()
         # UI overlay: render text quad
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

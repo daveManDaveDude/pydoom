@@ -1,0 +1,57 @@
+1. Extend the world format
+           • In your JSON level files, add an “objects” (or “sprites”) list alongside “map”, e.g.
+             {
+           "map": [ … ],
+           "objects": [
+             {"x": 3.5, "y": 5.2, "type": "pickup_health"},
+             {"x": 7.1, "y": 2.8, "type": "enemy_basic"}
+           ]
+             }
+           • Update game/world.py to load data.get("objects",[]) into a new attribute, e.g. world.objects.
+        2. Define a Sprite (or “GameObject”) class
+           • Holds position (x,y), a type key, maybe size/orientation, state data.
+           • A simple Python class or dataclass in a new module (e.g. game/sprite.py).
+        3. Hook object‐spawns into your Game
+           • In Game.__init__, after loading the world, instantiate a list of Sprite instances from world.objects.
+           • Store them in your Game or Renderer so they persist each frame.
+        4. Asset and config mappings
+           • In config.py, add a SPRITE_TEXTURES dict mapping each “type” → texture filename (and maybe a scale
+    factor).
+           • In Renderer.__init__, for each entry load_texture and keep a map of type → GL texture handle (and any
+    sprite “sheet” UV info).
+        5. CPU‐side sprite projection & sorting
+           • Each frame, for each sprite:
+             – Compute dx = sprite.x – player.x, dy = sprite.y – player.y
+             – Compute distance = sqrt(dx²+dy²) and relative angle = atan2(dy,dx) – player.angle (wrap into [–π,π])
+             – Cull any sprite whose |angle| > half_fov + small margin
+             – Record (sprite, distance, angle) in a list
+           • Sort that list back-to-front by distance descending.
+        6. Depth/Occlusion against walls
+           Option A (classic Wolf3D):
+             – Modify CpuWallRenderer to record perp‐distances[] per column during the wall cast
+             – When you draw sprites, for each vertical stripe of the sprite, check stripe’s distance <
+    distances[column] before drawing pixels/triangles
+           Option B (GL depth test):
+             – Enable GL_DEPTH_TEST in your floor+wall passes (and write proper gl_FragDepth in floor shader), then
+    draw sprites as quads using the same shader so GPU handles occlusion for you.
+        7. Draw each sprite as a screen–space billboard
+           • For each sorted sprite:
+             – Compute projected sprite height = proj_plane_dist / distance
+             – Compute on-screen x_center = ((angle/half_fov)+1)/2 * screen_width
+             – Build a quad (two triangles) of width=height (or configured size) centered at x_center, vertically
+    centered at mid+player.pitch
+             – Fill an interleaved VBO [x,y,u,v] for those six verts
+             – Bind the sprite’s texture and draw with your textured‐quad shader (could reuse wall_tex_shader).
+        8. Integrate into your render loop
+           In Renderer.render(), after wall_renderer.render(...) and before the UI overlay, invoke your
+    SpriteRenderer.render(world, player) to draw all sprites.
+        9. Update documentation & examples
+           • Add a section to README describing the new “objects” JSON key and supported types
+           • Provide an example level file with a few pickups/enemies
+           • Note any config settings (e.g. sprite sizes, texture files).
+        10. Testing & iteration
+               • Start with a single static sprite to validate your math & sorting
+               • Verify occlusion behind walls
+               • Tweak scaling, pitch offsets, FOV edge‐cases
+               • Once static works, you can in future add per-sprite animation frames or simple AI.
+
