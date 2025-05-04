@@ -40,6 +40,6 @@ CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
 WALL_TEXTURE_FILE = 'brick_wall.png'
 # Filename of the sprite to render (located in game/textures directory)
 # Filename of the sprite to render (located in game/textures directory)
-SPRITE_TEXTURE_FILE = 'metal_wall.png'
+SPRITE_TEXTURE_FILE = 'health-power-up.png'
 # Rotation speed for powerup sprite (radians per second)
 SPRITE_ROT_SPEED = math.pi / 2.0
