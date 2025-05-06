@@ -95,5 +95,7 @@ class Game:
             self.handle_events()
             self.update(dt)
             self.render()
+        # Clean up GL resources before quitting
+        self.renderer.shutdown()
         pygame.quit()
         sys.exit()

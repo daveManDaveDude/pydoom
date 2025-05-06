@@ -4,7 +4,7 @@ Module defining an interface for wall rendering (casting) and a CPU-based implem
 import ctypes
 import math
 import numpy as np
-from OpenGL.GL import *
+import OpenGL.GL as gl  # noqa: N811
 
 class WallRenderer:
     """Abstract base class for wall rendering implementations."""
@@ -27,7 +27,7 @@ class CpuWallRenderer(WallRenderer):
         self.uv_attr = uv_attr
         self.u_tex_loc = u_tex_loc
         # VBO for wall vertices + UVs
-        self.vbo = glGenBuffers(1)
+        self.vbo = gl.glGenBuffers(1)
         # Depth buffer for occlusion per column
         self.depth_buffer = np.zeros(self.w, dtype=np.float32)
 
@@ -104,19 +104,19 @@ class CpuWallRenderer(WallRenderer):
             verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]; idx += 1
         # Upload vertex data and draw
         self.shader.use()
-        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER, verts_uv.nbytes, verts_uv, GL_DYNAMIC_DRAW)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, verts_uv.nbytes, verts_uv, gl.GL_DYNAMIC_DRAW)
         stride = verts_uv.strides[0]
-        glEnableVertexAttribArray(self.pos_attr)
-        glVertexAttribPointer(self.pos_attr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(self.uv_attr)
-        glVertexAttribPointer(self.uv_attr, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(8))
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, self.wall_tex)
-        glUniform1i(self.u_tex_loc, 0)
-        glDrawArrays(GL_TRIANGLES, 0, self.w * 6)
-        glDisableVertexAttribArray(self.pos_attr)
-        glDisableVertexAttribArray(self.uv_attr)
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindTexture(GL_TEXTURE_2D, 0)
+        gl.glEnableVertexAttribArray(self.pos_attr)
+        gl.glVertexAttribPointer(self.pos_attr, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, ctypes.c_void_p(0))
+        gl.glEnableVertexAttribArray(self.uv_attr)
+        gl.glVertexAttribPointer(self.uv_attr, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, ctypes.c_void_p(8))
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.wall_tex)
+        gl.glUniform1i(self.u_tex_loc, 0)
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.w * 6)
+        gl.glDisableVertexAttribArray(self.pos_attr)
+        gl.glDisableVertexAttribArray(self.uv_attr)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
         self.shader.stop()
