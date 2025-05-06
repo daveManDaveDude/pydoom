@@ -311,9 +311,12 @@ void main() {
                         continue
                     u = (proj + half_w2) / world_w2
                     sl_h = (self.proj_plane_dist / perp) * world_h2
-                    y0 = mid_y - sl_h * 0.5; y1 = mid_y + sl_h * 0.5
+                    # Align enemy sprite base with ground plane
+                    h_half = self.h * 0.5
+                    y_base = mid_y - h_half / perp
+                    y_top = y_base + sl_h
                     x0_ndc = col * inv_w * 2.0 - 1.0; x1_ndc = (col + 1) * inv_w * 2.0 - 1.0
-                    y0_ndc = y0 * inv_h * 2.0 - 1.0; y1_ndc = y1 * inv_h * 2.0 - 1.0
+                    y0_ndc = y_base * inv_h * 2.0 - 1.0; y1_ndc = y_top * inv_h * 2.0 - 1.0
                     cols2.extend([
                         [x0_ndc, y1_ndc, u, 1.0],
                         [x0_ndc, y0_ndc, u, 0.0],
