@@ -131,6 +131,17 @@ void main() {
         self.sprite_tex = load_texture(sprite_path, wrap_s=GL_CLAMP, wrap_t=GL_CLAMP)
         self.sprite_width, self.sprite_height = spr_surf.get_size()
         self.sprite_vbo = glGenBuffers(1)
+        # Prepare mapping of sprite textures (demo and any additional sprites)
+        self.sprite_texs = {SPRITE_TEXTURE_FILE: (self.sprite_tex, self.sprite_width, self.sprite_height)}
+        if self.world and hasattr(self.world, 'sprites'):
+            for sp in self.world.sprites:
+                tex_name = sp.get('texture')
+                if tex_name and tex_name not in self.sprite_texs:
+                    sp_path = os.path.join(textures_dir, tex_name)
+                    sp_surf = pygame.image.load(sp_path).convert_alpha()
+                    tex_id = load_texture(sp_path, wrap_s=GL_CLAMP, wrap_t=GL_CLAMP)
+                    w, h = sp_surf.get_size()
+                    self.sprite_texs[tex_name] = (tex_id, w, h)
         # Prepare UI overlay text (Press Q to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
         ui_surf = self.ui_font.render("Press Q to quit", True, (255, 255, 255))
@@ -254,6 +265,82 @@ void main() {
                 glBindBuffer(GL_ARRAY_BUFFER, 0)
                 glBindTexture(GL_TEXTURE_2D, 0)
                 self.wall_tex_shader.stop()
+        # Billboard sprites for any additional sprites defined in world.sprites
+        if hasattr(world, 'sprites'):
+            inv_w = 1.0 / (self.w - 1.0)
+            inv_h = 1.0 / (self.h - 1.0)
+            mid_y = self.h * 0.5 + player.pitch
+            depth = self.wall_renderer.depth_buffer
+            px0, py0 = player.x, player.y
+            for sp in world.sprites:
+                pxw, pyw = sp['pos']
+                world_h2 = sp.get('height') or 0.25
+                tex_name = sp['texture']
+                tex_id, spr_w, spr_h = self.sprite_texs.get(tex_name, (None, None, None))
+                if tex_id is None:
+                    continue
+                aspect2 = float(spr_w) / float(spr_h)
+                world_w2 = world_h2 * aspect2
+                half_w2 = world_w2 * 0.5
+                # Compute plane normal facing the camera
+                dx = px0 - pxw; dy = py0 - pyw
+                dist_plane = math.hypot(dx, dy)
+                if dist_plane < 1e-6:
+                    continue
+                n_x = dx / dist_plane; n_y = dy / dist_plane
+                t_x = -n_y; t_y = n_x
+                cols2 = []
+                for col in range(self.w):
+                    ang_off = -self.half_fov + col * (self.fov / self.w)
+                    r_dx = math.cos(player.angle) * math.cos(ang_off) - math.sin(player.angle) * math.sin(ang_off)
+                    r_dy = math.sin(player.angle) * math.cos(ang_off) + math.cos(player.angle) * math.sin(ang_off)
+                    denom = n_x * r_dx + n_y * r_dy
+                    if abs(denom) < 1e-6:
+                        continue
+                    num = n_x * (pxw - px0) + n_y * (pyw - py0)
+                    t_dist = num / denom
+                    if t_dist <= 0:
+                        continue
+                    perp = t_dist * math.cos(ang_off)
+                    if perp <= 0 or perp >= depth[col]:
+                        continue
+                    # Intersection on plane
+                    hx = px0 + r_dx * t_dist; hy = py0 + r_dy * t_dist
+                    proj = (hx - pxw) * t_x + (hy - pyw) * t_y
+                    if abs(proj) > half_w2:
+                        continue
+                    u = (proj + half_w2) / world_w2
+                    sl_h = (self.proj_plane_dist / perp) * world_h2
+                    y0 = mid_y - sl_h * 0.5; y1 = mid_y + sl_h * 0.5
+                    x0_ndc = col * inv_w * 2.0 - 1.0; x1_ndc = (col + 1) * inv_w * 2.0 - 1.0
+                    y0_ndc = y0 * inv_h * 2.0 - 1.0; y1_ndc = y1 * inv_h * 2.0 - 1.0
+                    cols2.extend([
+                        [x0_ndc, y1_ndc, u, 1.0],
+                        [x0_ndc, y0_ndc, u, 0.0],
+                        [x1_ndc, y0_ndc, u, 0.0],
+                        [x1_ndc, y0_ndc, u, 0.0],
+                        [x1_ndc, y1_ndc, u, 1.0],
+                        [x0_ndc, y1_ndc, u, 1.0],
+                    ])
+                if cols2:
+                    sprite_verts2 = __import__('numpy').array(cols2, dtype=__import__('numpy').float32)
+                    self.wall_tex_shader.use()
+                    glBindBuffer(GL_ARRAY_BUFFER, self.sprite_vbo)
+                    glBufferData(GL_ARRAY_BUFFER, sprite_verts2.nbytes, sprite_verts2, GL_DYNAMIC_DRAW)
+                    stride2 = sprite_verts2.strides[0]
+                    glEnableVertexAttribArray(self.wall_pos2Attr)
+                    glVertexAttribPointer(self.wall_pos2Attr, 2, GL_FLOAT, GL_FALSE, stride2, ctypes.c_void_p(0))
+                    glEnableVertexAttribArray(self.wall_uvAttr)
+                    glVertexAttribPointer(self.wall_uvAttr, 2, GL_FLOAT, GL_FALSE, stride2, ctypes.c_void_p(8))
+                    glActiveTexture(GL_TEXTURE0)
+                    glBindTexture(GL_TEXTURE_2D, tex_id)
+                    glUniform1i(self.uWallTexLoc, 0)
+                    glDrawArrays(GL_TRIANGLES, 0, len(cols2))
+                    glDisableVertexAttribArray(self.wall_pos2Attr)
+                    glDisableVertexAttribArray(self.wall_uvAttr)
+                    glBindBuffer(GL_ARRAY_BUFFER, 0)
+                    glBindTexture(GL_TEXTURE_2D, 0)
+                    self.wall_tex_shader.stop()
         # UI overlay: render text quad
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)

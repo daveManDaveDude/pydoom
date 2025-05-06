@@ -14,5 +14,12 @@
   "powerup": {
     "pos": [5.5, 5.5],
     "angle": 45
-  }
+  },
+  "sprites": [
+    {
+      "pos": [7.5, 5.5],
+      "texture": "TROOA1_L.png",
+      "height": 0.5
+    }
+  ]
 }

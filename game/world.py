@@ -32,6 +32,23 @@ class World:
                 # Legacy: powerup as simple [x, y]
                 elif isinstance(pu, (list, tuple)) and len(pu) == 2:
                     self.powerup_pos = (float(pu[0]), float(pu[1]))
+                # Load additional billboard sprites if specified
+                self.sprites = []
+                sprs = data.get('sprites')
+                if isinstance(sprs, list):
+                    for sp in sprs:
+                        pos = sp.get('pos')
+                        tex = sp.get('texture')
+                        height = sp.get('height', None)
+                        if isinstance(pos, (list, tuple)) and len(pos) == 2 and isinstance(tex, str):
+                            try:
+                                hval = float(height) if height is not None else None
+                            except Exception:
+                                hval = None
+                            self.sprites.append({
+                                'pos': (float(pos[0]), float(pos[1])), 'texture': tex,
+                                'height': hval
+                            })
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)

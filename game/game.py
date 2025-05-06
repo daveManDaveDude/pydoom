@@ -31,8 +31,8 @@ class Game:
         self.fps = FPS
         # World and Player
         self.world = World()
-        self.player = Player(x=3.0,
-                             y=3.0,
+        self.player = Player(x=3.5,
+                             y=3.5,
                              angle=0.0,
                              move_speed=MOVE_SPEED,
                              rot_speed=ROT_SPEED)
