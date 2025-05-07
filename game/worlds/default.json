@@ -18,7 +18,11 @@
   "sprites": [
     {
       "pos": [7.5, 5.5],
-      "texture": "TROOA1_L.png",
+      "textures": [
+        "TROOA1_L.png",
+        "TROOB1_L.png",
+        "TROOD1_L.png"
+      ],
       "height": 0.5
     }
   ]

@@ -38,17 +38,28 @@ class World:
                 if isinstance(sprs, list):
                     for sp in sprs:
                         pos = sp.get('pos')
-                        tex = sp.get('texture')
                         height = sp.get('height', None)
-                        if isinstance(pos, (list, tuple)) and len(pos) == 2 and isinstance(tex, str):
-                            try:
-                                hval = float(height) if height is not None else None
-                            except Exception:
-                                hval = None
-                            self.sprites.append({
-                                'pos': (float(pos[0]), float(pos[1])), 'texture': tex,
-                                'height': hval
-                            })
+                        # Determine animation textures list or single texture
+                        texs = sp.get('textures')
+                        if isinstance(texs, list) and all(isinstance(t, str) for t in texs):
+                            textures = texs
+                        else:
+                            tex = sp.get('texture')
+                            if isinstance(tex, str):
+                                textures = [tex]
+                            else:
+                                continue
+                        if not (isinstance(pos, (list, tuple)) and len(pos) == 2):
+                            continue
+                        try:
+                            hval = float(height) if height is not None else None
+                        except Exception:
+                            hval = None
+                        self.sprites.append({
+                            'pos': (float(pos[0]), float(pos[1])),
+                            'height': hval,
+                            'textures': textures
+                        })
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)

@@ -5,6 +5,9 @@ import os
 import ctypes
 import pygame
 import math
+# Animation frame duration in milliseconds (ping-pong cycle)
+# Increased to slow the animation slightly
+_ANIM_FRAME_MS = 300
 try:
     import OpenGL.GL as gl  # noqa: N811
 except ImportError:
@@ -143,16 +146,17 @@ void main() {
         self.sprite_width, self.sprite_height = spr_surf.get_size()
         self.sprite_vbo = self._res.gen(lambda: gl.glGenBuffers(1), _delete_buffer)
         # Prepare mapping of sprite textures (demo and any additional sprites)
-        self.sprite_texs = {SPRITE_TEXTURE_FILE: (self.sprite_tex, self.sprite_width, self.sprite_height)}
+        # Prepare mapping of sprite textures for all sprites (animation frames)
+        self.sprite_texs = {}
         if self.world and hasattr(self.world, 'sprites'):
             for sp in self.world.sprites:
-                tex_name = sp.get('texture')
-                if tex_name and tex_name not in self.sprite_texs:
-                    sp_path = os.path.join(textures_dir, tex_name)
-                    sp_surf = pygame.image.load(sp_path).convert_alpha()
-                    tex_id = load_texture(sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP)
-                    w, h = sp_surf.get_size()
-                    self.sprite_texs[tex_name] = (tex_id, w, h)
+                for tex_name in sp.get('textures', []):
+                    if tex_name and tex_name not in self.sprite_texs:
+                        sp_path = os.path.join(textures_dir, tex_name)
+                        sp_surf = pygame.image.load(sp_path).convert_alpha()
+                        tex_id = load_texture(sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP)
+                        w, h = sp_surf.get_size()
+                        self.sprite_texs[tex_name] = (tex_id, w, h)
         # Prepare UI overlay text (Press Q to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
         ui_surf = self.ui_font.render("Press Q to quit", True, (255, 255, 255))
@@ -286,7 +290,18 @@ void main() {
             for sp in world.sprites:
                 pxw, pyw = sp['pos']
                 world_h2 = sp.get('height') or 0.25
-                tex_name = sp['texture']
+                # Determine current animation frame
+                textures = sp.get('textures', [])
+                n_frames = len(textures)
+                if n_frames == 0:
+                    continue
+                if n_frames == 1:
+                    frame_idx = 0
+                else:
+                    cycle = 2 * n_frames - 2
+                    t = (pygame.time.get_ticks() // _ANIM_FRAME_MS) % cycle
+                    frame_idx = t if t < n_frames else cycle - t
+                tex_name = textures[frame_idx]
                 tex_id, spr_w, spr_h = self.sprite_texs.get(tex_name, (None, None, None))
                 if tex_id is None:
                     continue
