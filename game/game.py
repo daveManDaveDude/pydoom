@@ -1,10 +1,11 @@
 import sys
+import math
 import pygame
 
 from .world import World
 from .player import Player
 from .renderer import Renderer
-from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED
+from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -36,6 +37,9 @@ class Game:
                              angle=0.0,
                              move_speed=MOVE_SPEED,
                              rot_speed=ROT_SPEED)
+        # Instantiate enemies from world spawn definitions
+        # Store dynamic actors separately from static sprites
+        self.enemies = list(self.world.enemies)
         # Renderer
         # Pass world into renderer for wall raycasting
         self.renderer = Renderer(
@@ -81,6 +85,31 @@ class Game:
         # Rotate powerup sprite
         if hasattr(self.world, 'powerup_angle') and self.world.powerup_angle is not None:
             self.world.powerup_angle += SPRITE_ROT_SPEED * dt
+        # Enemy chasing logic: recompute path each frame towards player
+        for enemy in self.enemies:
+            # Determine path on integer grid
+            path = enemy.find_path(self.world, (self.player.x, self.player.y))
+            # Next waypoint cell: skip current cell
+            if len(path) > 1:
+                next_cell = path[1]
+                # World coordinates: center of cell
+                wx = next_cell[0] + 0.5
+                wy = next_cell[1] + 0.5
+                dx = wx - enemy.x
+                dy = wy - enemy.y
+                dist = math.hypot(dx, dy)
+                if dist > 1e-6:
+                    # Step proportional to speed and delta time
+                    step = ENEMY_SPEED * dt
+                    if dist < step:
+                        step = dist
+                    # New proposed position
+                    new_x = enemy.x + (dx / dist) * step
+                    new_y = enemy.y + (dy / dist) * step
+                    # Avoid wall collision
+                    if not self.world.is_wall(int(new_x), int(new_y)):
+                        enemy.x = new_x
+                        enemy.y = new_y
 
     def render(self):
         """Render the entire scene."""

@@ -10,6 +10,9 @@ FPS = 60
 MOVE_SPEED = 3.0
 # Rotation speed in radians per second
 ROT_SPEED = 2.0
+# Enemy settings
+# Movement speed in map units per second for AI-controlled enemies
+ENEMY_SPEED = 2.0
 
 # Raycasting settings
 # Field of view angle (in radians)

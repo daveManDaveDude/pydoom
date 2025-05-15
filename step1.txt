@@ -1,0 +1,8 @@
+Extend Map Definitions for Enemies: If not already supported, update the world configuration (e.g. the JSON map in game/worlds/default.json) to include multiple enemy spawn locations. This can be done by adding entries to a sprites list or a new enemies list in the JSON. For example:
+"sprites": [
+    { "type": "enemy", "x": 3, "y": 5 },
+    { "type": "enemy", "x": 8, "y": 2 },
+    { "type": "powerup", "x": 1, "y": 1 }
+]
+Each enemy entry should have at least an x, y position (grid coordinates) and a type identifier. Using the existing sprites list keeps things flexible (we can differentiate sprite types by the type field). If the current map JSON only defines a single enemy or uses a different format, adjust accordingly (e.g. if one enemy was hard-coded, move that into the JSON so multiple can be listed).
+Parse Enemies on World Load: In game/world.py (or wherever the world map is loaded), add logic to parse enemy entries. For instance, after loading the map JSON, iterate over data["sprites"] (or data["enemies"]) and collect all entries with type == "enemy". Create a data structure to hold enemies in the game state. For maintainability, it’s best to encapsulate enemy data in an Enemy class (e.g. in a new file game/enemy.py). Each Enemy instance can store its position (as float coordinates for continuous movement, initialized to the center of the spawn tile), and possibly other attributes (like a reference to its sprite texture or an animation state). If introducing a class is overkill for now, you can simply store enemies as dictionaries or simple objects, but a class will make future extensions easier.

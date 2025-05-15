@@ -1,6 +1,7 @@
 import os
 import json
 from .config import WORLD_FILE
+from .enemy import Enemy
 
 class World:
     """World map representation loaded from external file (default) or provided grid."""
@@ -8,6 +9,8 @@ class World:
         # Initialize map and other world attributes
         self.powerup_pos = None
         self.powerup_angle = 0.0
+        # Initialize list of enemies
+        self.enemies = []
         if map_grid is not None:
             self.map = map_grid
         else:
@@ -37,6 +40,9 @@ class World:
                 sprs = data.get('sprites')
                 if isinstance(sprs, list):
                     for sp in sprs:
+                        # Skip enemy definitions for static sprite list
+                        if sp.get('type') == 'enemy':
+                            continue
                         pos = sp.get('pos')
                         height = sp.get('height', None)
                         # Determine animation textures list or single texture
@@ -60,6 +66,38 @@ class World:
                             'height': hval,
                             'textures': textures
                         })
+                # Parse enemy spawn definitions
+                self.enemies = []
+                if isinstance(sprs, list):
+                    for sp in sprs:
+                        if sp.get('type') != 'enemy':
+                            continue
+                        # Parse position: support 'pos' or 'x','y' fields
+                        pos = sp.get('pos')
+                        if not (isinstance(pos, (list, tuple)) and len(pos) == 2):
+                            x_val = sp.get('x'); y_val = sp.get('y')
+                            if x_val is None or y_val is None:
+                                continue
+                            pos = [x_val, y_val]
+                        try:
+                            ex = float(pos[0]); ey = float(pos[1])
+                        except Exception:
+                            continue
+                        # Parse textures list or single texture
+                        texs = sp.get('textures')
+                        if isinstance(texs, list) and all(isinstance(t, str) for t in texs):
+                            textures = texs
+                        else:
+                            tex_single = sp.get('texture')
+                            textures = [tex_single] if isinstance(tex_single, str) else []
+                        # Parse height
+                        h_raw = sp.get('height', 0.25)
+                        try:
+                            h_val = float(h_raw)
+                        except Exception:
+                            h_val = 0.25
+                        enemy = Enemy(ex, ey, textures=textures, height=h_val)
+                        self.enemies.append(enemy)
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")
         self.height = len(self.map)
