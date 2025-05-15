@@ -1,11 +1,12 @@
 import sys
 import math
+import random
 import pygame
 
 from .world import World
 from .player import Player
 from .renderer import Renderer
-from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED
+from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED, COLLISION_RADIUS
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -110,6 +111,44 @@ class Game:
                     if not self.world.is_wall(int(new_x), int(new_y)):
                         enemy.x = new_x
                         enemy.y = new_y
+        # Collision detection: if an enemy reaches the player, respawn it
+        for enemy in self.enemies:
+            dx_e = enemy.x - self.player.x
+            dy_e = enemy.y - self.player.y
+            if math.hypot(dx_e, dy_e) < COLLISION_RADIUS:
+                self._respawn_enemy(enemy)
+
+    def _respawn_enemy(self, enemy):
+        """
+        Teleport the given enemy to a random free cell away from walls, player, and other enemies.
+        """
+        w = self.world
+        player_cell = (int(self.player.x), int(self.player.y))
+        for _ in range(100):
+            rx = random.randrange(w.width)
+            ry = random.randrange(w.height)
+            # Must be walkable
+            if w.is_wall(rx, ry):
+                continue
+            # Not on player
+            if (rx, ry) == player_cell:
+                continue
+            # Not on another enemy
+            conflict = any(
+                other is not enemy and (int(other.x), int(other.y)) == (rx, ry)
+                for other in self.enemies
+            )
+            if conflict:
+                continue
+            # Ensure sufficient distance from player (at least 2 units)
+            cx, cy = rx + 0.5, ry + 0.5
+            if math.hypot(cx - self.player.x, cy - self.player.y) < 2.0:
+                continue
+            # Found valid spawn
+            enemy.x = cx
+            enemy.y = cy
+            return
+        # Fallback: do nothing if no suitable tile found
 
     def render(self):
         """Render the entire scene."""

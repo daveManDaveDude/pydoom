@@ -13,6 +13,8 @@ ROT_SPEED = 2.0
 # Enemy settings
 # Movement speed in map units per second for AI-controlled enemies
 ENEMY_SPEED = 2.0
+# Collision detection: if enemy is this close to player, trigger respawn (map units)
+COLLISION_RADIUS = 0.5
 
 # Raycasting settings
 # Field of view angle (in radians)
