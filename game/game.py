@@ -90,27 +90,30 @@ class Game:
         for enemy in self.enemies:
             # Determine path on integer grid
             path = enemy.find_path(self.world, (self.player.x, self.player.y))
-            # Next waypoint cell: skip current cell
             if len(path) > 1:
-                next_cell = path[1]
-                # World coordinates: center of cell
-                wx = next_cell[0] + 0.5
-                wy = next_cell[1] + 0.5
-                dx = wx - enemy.x
-                dy = wy - enemy.y
-                dist = math.hypot(dx, dy)
-                if dist > 1e-6:
-                    # Step proportional to speed and delta time
-                    step = ENEMY_SPEED * dt
-                    if dist < step:
-                        step = dist
-                    # New proposed position
-                    new_x = enemy.x + (dx / dist) * step
-                    new_y = enemy.y + (dy / dist) * step
-                    # Avoid wall collision
-                    if not self.world.is_wall(int(new_x), int(new_y)):
-                        enemy.x = new_x
-                        enemy.y = new_y
+                # Next waypoint cell center
+                target_x = path[1][0] + 0.5
+                target_y = path[1][1] + 0.5
+            elif len(path) == 1:
+                # Already in same cell: head toward exact player position
+                target_x = self.player.x
+                target_y = self.player.y
+            else:
+                # No path available: skip movement
+                continue
+            # Compute movement vector toward target
+            dx = target_x - enemy.x
+            dy = target_y - enemy.y
+            dist = math.hypot(dx, dy)
+            if dist > 1e-6:
+                step = ENEMY_SPEED * dt
+                if dist < step:
+                    step = dist
+                new_x = enemy.x + (dx / dist) * step
+                new_y = enemy.y + (dy / dist) * step
+                if not self.world.is_wall(int(new_x), int(new_y)):
+                    enemy.x = new_x
+                    enemy.y = new_y
         # Collision detection: if an enemy reaches the player, respawn it
         for enemy in self.enemies:
             dx_e = enemy.x - self.player.x
