@@ -47,3 +47,11 @@ WALL_TEXTURE_FILE = 'brick_wall.png'
 SPRITE_TEXTURE_FILE = 'health-power-up.png'
 # Rotation speed for powerup sprite (radians per second)
 SPRITE_ROT_SPEED = math.pi / 2.0
+
+# Projectile settings
+# Speed of bullets (map units per second)
+BULLET_SPEED = 10.0
+# Time in seconds before a bullet expires
+BULLET_LIFESPAN = 2.0
+# Collision radius for bullet-enemy hits (map units)
+BULLET_HIT_RADIUS = 0.5

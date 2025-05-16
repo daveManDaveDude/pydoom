@@ -5,7 +5,7 @@ Enemy module: defines the Enemy class for game AI.
 class Enemy:
     """Represents an enemy in the game world."""
 
-    def __init__(self, x, y, textures=None, height=0.25):
+    def __init__(self, x, y, textures=None, height=0.25, health=2):
         # Position in world coordinates
         self.x = float(x)
         self.y = float(y)
@@ -15,6 +15,9 @@ class Enemy:
         self.height = float(height)
         # Initial facing angle (radians), can be updated by AI
         self.angle = 0.0
+        # Health: number of bullet hits to eliminate
+        self.max_health = int(health)
+        self.health = int(health)
 
     def __repr__(self):
         return f"<Enemy x={self.x:.2f} y={self.y:.2f} textures={self.textures}>"

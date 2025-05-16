@@ -25,6 +25,17 @@
         "TROOD1_L.png"
       ],
       "height": 0.5
+    },
+    {
+      "type": "enemy",
+      "pos": [7.5, 7.5],
+      "textures": [
+        "TROOA1_L.png",
+        "TROOB1_L.png",
+        "TROOD1_L.png"
+      ],
+      "height": 0.5
     }
+
   ]
 }

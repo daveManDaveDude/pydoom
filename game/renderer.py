@@ -505,6 +505,32 @@ void main() {
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
         self.wall_tex_shader.stop()
+        # Crosshair overlay: draw a simple plus at screen center
+        # Switch to orthographic projection for 2D drawing
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
+        gl.glOrtho(0, self.w, self.h, 0, -1, 1)
+        gl.glMatrixMode(gl.GL_MODELVIEW)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
+        # Draw crosshair lines (10px total length)
+        gl.glDisable(gl.GL_TEXTURE_2D)
+        gl.glColor3f(1.0, 1.0, 1.0)
+        gl.glLineWidth(2.0)
+        cx = self.w // 2
+        cy = self.h // 2
+        gl.glBegin(gl.GL_LINES)
+        gl.glVertex2f(cx - 5, cy)
+        gl.glVertex2f(cx + 5, cy)
+        gl.glVertex2f(cx, cy - 5)
+        gl.glVertex2f(cx, cy + 5)
+        gl.glEnd()
+        gl.glEnable(gl.GL_TEXTURE_2D)
+        # Restore previous matrices
+        gl.glPopMatrix()
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPopMatrix()
         # Swap buffers
         pygame.display.flip()
 

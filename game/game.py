@@ -6,7 +6,13 @@ import pygame
 from .world import World
 from .player import Player
 from .renderer import Renderer
-from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED, COLLISION_RADIUS
+from .config import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED,
+    FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y,
+    MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED,
+    COLLISION_RADIUS, BULLET_HIT_RADIUS
+)
+from .bullet import Bullet
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -41,6 +47,8 @@ class Game:
         # Instantiate enemies from world spawn definitions
         # Store dynamic actors separately from static sprites
         self.enemies = list(self.world.enemies)
+        # Store active bullets/projectiles
+        self.bullets = []
         # Renderer
         # Pass world into renderer for wall raycasting
         self.renderer = Renderer(
@@ -59,9 +67,18 @@ class Game:
             # Quit on window close
             if event.type == pygame.QUIT:
                 self.running = False
-            # Quit on pressing Q
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_q:
-                self.running = False
+            # Key presses
+            elif event.type == pygame.KEYDOWN:
+                # Quit on pressing Q
+                if event.key == pygame.K_q:
+                    self.running = False
+                # Fire bullet on spacebar
+                elif event.key == pygame.K_SPACE:
+                    # Spawn bullet slightly in front of player
+                    offset = 0.2
+                    bx = self.player.x + math.cos(self.player.angle) * offset
+                    by = self.player.y + math.sin(self.player.angle) * offset
+                    self.bullets.append(Bullet(bx, by, self.player.angle))
 
     def update(self, dt):
         """Update game state: handle input and move player."""
@@ -120,6 +137,28 @@ class Game:
             dy_e = enemy.y - self.player.y
             if math.hypot(dx_e, dy_e) < COLLISION_RADIUS:
                 self._respawn_enemy(enemy)
+        # Update bullets: move, check lifespan and wall collisions
+        for bullet in self.bullets:
+            bullet.update(dt)
+            # Deactivate if out of lifespan or collided with a wall
+            if not bullet.active or self.world.is_wall(int(bullet.x), int(bullet.y)):
+                bullet.active = False
+            else:
+                # Check collision with enemies
+                for enemy in self.enemies:
+                    dx_b = bullet.x - enemy.x
+                    dy_b = bullet.y - enemy.y
+                    if math.hypot(dx_b, dy_b) < BULLET_HIT_RADIUS:
+                        # Hit detected: deactivate bullet and damage enemy
+                        bullet.active = False
+                        enemy.health -= 1
+                        # Respawn or reset enemy if health depleted
+                        if enemy.health <= 0:
+                            self._respawn_enemy(enemy)
+                            enemy.health = enemy.max_health
+                        break
+        # Remove inactive bullets
+        self.bullets = [b for b in self.bullets if b.active]
 
     def _respawn_enemy(self, enemy):
         """
@@ -147,9 +186,12 @@ class Game:
             cx, cy = rx + 0.5, ry + 0.5
             if math.hypot(cx - self.player.x, cy - self.player.y) < 2.0:
                 continue
-            # Found valid spawn
+            # Found valid spawn: reposition and reset health
             enemy.x = cx
             enemy.y = cy
+            # Restore full health upon respawn
+            if hasattr(enemy, 'max_health'):
+                enemy.health = enemy.max_health
             return
         # Fallback: do nothing if no suitable tile found
 
