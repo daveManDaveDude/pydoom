@@ -10,7 +10,8 @@ from .config import (
     SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED,
     FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y,
     MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED,
-    COLLISION_RADIUS, BULLET_HIT_RADIUS, ENEMY_RESPAWN_DELAY
+    COLLISION_RADIUS, BULLET_HIT_RADIUS,
+    ENEMY_RESPAWN_DELAY, ENEMY_LOS_DIRECT_DELAY
 )
 from .bullet import Bullet
 
@@ -115,19 +116,30 @@ class Game:
             # Skip enemies awaiting respawn
             if getattr(enemy, 'respawn_timer', 0) > 0:
                 continue
-            # Determine path on integer grid
-            path = enemy.find_path(self.world, (self.player.x, self.player.y))
-            if len(path) > 1:
-                # Next waypoint cell center
-                target_x = path[1][0] + 0.5
-                target_y = path[1][1] + 0.5
-            elif len(path) == 1:
-                # Already in same cell: head toward exact player position
+            # Update sight timer for line-of-sight detection
+            if self._is_visible_to_player(enemy.x, enemy.y):
+                enemy.sight_timer += dt
+            else:
+                enemy.sight_timer = 0.0
+            # Choose chase behavior: direct only after LOS has held for delay
+            if enemy.sight_timer >= ENEMY_LOS_DIRECT_DELAY:
+                # Direct pursuit: head toward exact player position
                 target_x = self.player.x
                 target_y = self.player.y
             else:
-                # No path available: skip movement
-                continue
+                # Pathfinding pursuit: follow next waypoint
+                path = enemy.find_path(self.world, (self.player.x, self.player.y))
+                if len(path) > 1:
+                    # Next waypoint cell center
+                    target_x = path[1][0] + 0.5
+                    target_y = path[1][1] + 0.5
+                elif len(path) == 1:
+                    # Same cell: head directly at player
+                    target_x = self.player.x
+                    target_y = self.player.y
+                else:
+                    # No path available: skip movement
+                    continue
             # Compute movement vector toward target
             dx = target_x - enemy.x
             dy = target_y - enemy.y
@@ -138,6 +150,7 @@ class Game:
                     step = dist
                 new_x = enemy.x + (dx / dist) * step
                 new_y = enemy.y + (dy / dist) * step
+                # Only move if not colliding with wall
                 if not self.world.is_wall(int(new_x), int(new_y)):
                     enemy.x = new_x
                     enemy.y = new_y

@@ -57,4 +57,7 @@ BULLET_LIFESPAN = 2.0
 # Collision radius for bullet-enemy hits (map units)
 BULLET_HIT_RADIUS = 0.5
 # Time delay before enemy respawn after death (seconds)
+# Time delay before enemy respawn after death (seconds)
 ENEMY_RESPAWN_DELAY = 2.0
+# Delay before enemy switches to direct pursuit after gaining line-of-sight (seconds)
+ENEMY_LOS_DIRECT_DELAY = 0.5

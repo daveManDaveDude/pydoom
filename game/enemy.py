@@ -20,6 +20,8 @@ class Enemy:
         self.health = int(health)
         # Timer until respawn after death (seconds); >0 means pending respawn
         self.respawn_timer = 0.0
+        # Timer counting line-of-sight before direct pursuit (seconds)
+        self.sight_timer = 0.0
 
     def __repr__(self):
         return f"<Enemy x={self.x:.2f} y={self.y:.2f} textures={self.textures}>"
