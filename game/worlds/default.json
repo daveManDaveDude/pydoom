@@ -12,13 +12,13 @@
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1]
   ],
   "powerup": {
-    "pos": [12.5, 8.5],
+    "pos": [3.5, 5.5],
     "angle": 45
   },
   "sprites": [
     {
       "type": "enemy",
-      "pos": [11.5, 7.5],
+      "pos": [1.5, 3.5],
       "textures": [
         "TROOA1_L.png",
         "TROOB1_L.png",
@@ -28,7 +28,7 @@
     },
     {
       "type": "enemy",
-      "pos": [8.5, 2.5],
+      "pos": [3.5, 2.5],
       "textures": [
         "TROOA1_L.png",
         "TROOB1_L.png",

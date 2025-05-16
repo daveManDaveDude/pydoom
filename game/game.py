@@ -11,7 +11,8 @@ from .config import (
     FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y,
     MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED,
     COLLISION_RADIUS, BULLET_HIT_RADIUS,
-    ENEMY_RESPAWN_DELAY, ENEMY_LOS_DIRECT_DELAY
+    ENEMY_RESPAWN_DELAY, ENEMY_LOS_DIRECT_DELAY,
+    HIT_FLASH_DURATION_MS
 )
 from .bullet import Bullet
 
@@ -70,8 +71,8 @@ class Game:
                 self.running = False
             # Key presses
             elif event.type == pygame.KEYDOWN:
-                # Quit on pressing Q
-                if event.key == pygame.K_q:
+                # Quit on pressing X
+                if event.key == pygame.K_x:
                     self.running = False
                 # Fire bullet on spacebar
                 elif event.key == pygame.K_SPACE:
@@ -181,6 +182,8 @@ class Game:
                 if math.hypot(dx_b, dy_b) < BULLET_HIT_RADIUS:
                     # Hit detected: deactivate bullet and damage enemy
                     bullet.active = False
+                    # Trigger hit flash feedback
+                    self.renderer.hit_flash_until = pygame.time.get_ticks() + HIT_FLASH_DURATION_MS
                     enemy.health -= 1
                     # Start respawn timer if health depleted
                     if enemy.health <= 0:

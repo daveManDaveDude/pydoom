@@ -69,6 +69,8 @@ class Renderer:
         self.half_fov = fov / 2.0
         # GL resource manager to track and clean up GL objects
         self._res = GLResourceManager()
+        # Hit flash timer (milliseconds timestamp until which to flash)
+        self.hit_flash_until = 0
         # Projection plane distance for wall heights
         self.proj_plane_dist = (self.w / 2.0) / __import__('math').tan(self.half_fov)
         # Basic OpenGL state
@@ -168,9 +170,9 @@ void main() {
                         tex_id = load_texture(sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP)
                         w, h = sp_surf.get_size()
                         self.sprite_texs[tex_name] = (tex_id, w, h)
-        # Prepare UI overlay text (Press Q to quit)
+        # Prepare UI overlay text (Press X to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
-        ui_surf = self.ui_font.render("Press Q to quit", True, (255, 255, 255))
+        ui_surf = self.ui_font.render("Press X to quit", True, (255, 255, 255))
         self.ui_text_width, self.ui_text_height = ui_surf.get_size()
         # Create UI texture
         self.ui_tex = create_texture_from_surface(ui_surf)
@@ -530,6 +532,19 @@ void main() {
         gl.glVertex2f(cx, cy - 5)
         gl.glVertex2f(cx, cy + 5)
         gl.glEnd()
+        # Flash red crosshair on hit
+        if pygame.time.get_ticks() < self.hit_flash_until:
+            gl.glColor3f(1.0, 0.0, 0.0)
+            gl.glLineWidth(4.0)
+            gl.glBegin(gl.GL_LINES)
+            gl.glVertex2f(cx - 5, cy)
+            gl.glVertex2f(cx + 5, cy)
+            gl.glVertex2f(cx, cy - 5)
+            gl.glVertex2f(cx, cy + 5)
+            gl.glEnd()
+            # restore white crosshair width
+            gl.glColor3f(1.0, 1.0, 1.0)
+            gl.glLineWidth(2.0)
         gl.glEnable(gl.GL_TEXTURE_2D)
         # Restore previous matrices
         gl.glPopMatrix()

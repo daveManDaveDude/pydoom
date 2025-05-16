@@ -1,6 +1,6 @@
 import os
 import json
-from .config import WORLD_FILE
+from .config import WORLD_FILE, DEFAULT_ENEMY_HEALTH
 from .enemy import Enemy
 
 class World:
@@ -96,7 +96,21 @@ class World:
                             h_val = float(h_raw)
                         except Exception:
                             h_val = 0.25
-                        enemy = Enemy(ex, ey, textures=textures, height=h_val)
+                        # Parse optional health for enemy, default if not provided or invalid
+                        health_raw = sp.get('health', None)
+                        if health_raw is not None:
+                            try:
+                                health_val = int(health_raw)
+                            except Exception:
+                                health_val = DEFAULT_ENEMY_HEALTH
+                        else:
+                            health_val = DEFAULT_ENEMY_HEALTH
+                        enemy = Enemy(
+                            ex, ey,
+                            textures=textures,
+                            height=h_val,
+                            health=health_val
+                        )
                         self.enemies.append(enemy)
             except Exception as e:
                 raise RuntimeError(f"Failed to load world map from {world_path}: {e}")

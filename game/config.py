@@ -14,7 +14,10 @@ ROT_SPEED = 2.0
 # Movement speed in map units per second for AI-controlled enemies
 ENEMY_SPEED = 1.5
 # Collision detection: if enemy is this close to player, trigger respawn (map units)
+# Collision detection: if enemy is this close to player, trigger respawn (map units)
 COLLISION_RADIUS = 0.5
+# Default enemy hit points (number of bullet hits to kill)
+DEFAULT_ENEMY_HEALTH = 5
 
 # Raycasting settings
 # Field of view angle (in radians)
@@ -61,3 +64,5 @@ BULLET_HIT_RADIUS = 0.5
 ENEMY_RESPAWN_DELAY = 2.0
 # Delay before enemy switches to direct pursuit after gaining line-of-sight (seconds)
 ENEMY_LOS_DIRECT_DELAY = 0.5
+# Duration for hit marker flash (milliseconds)
+HIT_FLASH_DURATION_MS = 200
