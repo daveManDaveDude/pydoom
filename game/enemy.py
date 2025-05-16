@@ -18,6 +18,8 @@ class Enemy:
         # Health: number of bullet hits to eliminate
         self.max_health = int(health)
         self.health = int(health)
+        # Timer until respawn after death (seconds); >0 means pending respawn
+        self.respawn_timer = 0.0
 
     def __repr__(self):
         return f"<Enemy x={self.x:.2f} y={self.y:.2f} textures={self.textures}>"

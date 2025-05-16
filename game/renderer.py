@@ -388,7 +388,11 @@ void main() {
             mid_y = self.h * 0.5 + player.pitch
             depth = self.wall_renderer.depth_buffer
             px0, py0 = player.x, player.y
+            # Dynamic enemies (chasing the player)
             for enemy in world.enemies:
+                # Skip enemies pending respawn (invisible during delay)
+                if getattr(enemy, 'respawn_timer', 0) > 0:
+                    continue
                 pxw, pyw = enemy.x, enemy.y
                 world_h2 = enemy.height or 0.25
                 textures = enemy.textures or []
