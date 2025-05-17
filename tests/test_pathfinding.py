@@ -3,6 +3,7 @@ from game.pathfinding import heuristic, find_path
 
 class DummyWorld:
     """Simple stub for grid world with optional walls and bounds."""
+
     def __init__(self, walls=None):
         self._walls = walls or set()
 

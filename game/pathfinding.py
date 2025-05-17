@@ -1,13 +1,20 @@
 """
 Pathfinding utilities: implements grid-based A* search.
 """
-import heapq
 
-def heuristic(a, b):
+from __future__ import annotations
+import heapq
+from typing import Any, List, Tuple
+
+
+def heuristic(a: Tuple[int, int], b: Tuple[int, int]) -> int:
     """Manhattan distance heuristic for grid."""
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
-def find_path(start, goal, world):
+
+def find_path(
+    start: Tuple[int, int], goal: Tuple[int, int], world: Any
+) -> List[Tuple[int, int]]:
     """
     Find a path on a grid-based world from start to goal using A*.
     start, goal: (x, y) tuples of integer grid coordinates.
@@ -53,14 +60,14 @@ def find_path(start, goal, world):
 
         x0, y0 = current
         # Explore 4-directional neighbors
-        for dx, dy in ((1,0), (-1,0), (0,1), (0,-1)):
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             neighbor = (x0 + dx, y0 + dy)
             # Skip walls or already visited
             if world.is_wall(neighbor[0], neighbor[1]) or neighbor in closed:
                 continue
             tentative_g = g_score[current] + 1
             # If this path to neighbor is better than any previous one
-            if tentative_g < g_score.get(neighbor, float('inf')):
+            if tentative_g < g_score.get(neighbor, float("inf")):
                 came_from[neighbor] = current
                 g_score[neighbor] = tentative_g
                 f_score = tentative_g + heuristic(neighbor, goal)

@@ -1,9 +1,13 @@
 """
 Bullet/projectile representation for the game.
 """
+
+from __future__ import annotations
 import math
+from typing import Tuple
 
 from .config import BULLET_SPEED, BULLET_LIFESPAN
+
 
 class Bullet:
     """
@@ -16,7 +20,8 @@ class Bullet:
         lifespan: Remaining time before bullet expires (seconds).
         active: Whether the bullet is still active.
     """
-    def __init__(self, x, y, angle):
+
+    def __init__(self, x: float, y: float, angle: float) -> None:
         self.x = x
         self.y = y
         self.angle = angle
@@ -28,7 +33,7 @@ class Bullet:
         self.lifespan = BULLET_LIFESPAN
         self.active = True
 
-    def update(self, dt):
+    def update(self, dt: float) -> None:
         """
         Move the bullet according to its velocity and reduce lifespan.
         Deactivate when lifespan reaches zero.
@@ -41,6 +46,6 @@ class Bullet:
         if self.lifespan <= 0:
             self.active = False
 
-    def position(self):  # noqa: A003
+    def position(self) -> Tuple[float, float]:  # noqa: A003
         """Return current (x, y) position of the bullet."""
         return (self.x, self.y)

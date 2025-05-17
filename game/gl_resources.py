@@ -3,7 +3,8 @@ from __future__ import annotations
 import contextlib
 import OpenGL.GL as gl
 from collections import defaultdict
-from typing import Callable, DefaultDict, List
+from typing import Callable, DefaultDict, Iterator, List
+
 
 class GLResourceManager:
     """
@@ -17,16 +18,22 @@ class GLResourceManager:
     """
 
     def __init__(self) -> None:
-        self._objs: DefaultDict[Callable[[int], None], List[int]] = defaultdict(list)
+        self._objs: DefaultDict[Callable[[int], None], List[int]] = defaultdict(
+            list
+        )
 
-    def gen(self, creator: Callable[[], int], deleter: Callable[[int], None]) -> int:
+    def gen(
+        self, creator: Callable[[], int], deleter: Callable[[int], None]
+    ) -> int:
         """Wraps any glGen* that returns ONE uint id."""
         obj_id: int = creator()
         self._objs[deleter].append(obj_id)
         return obj_id
 
     @contextlib.contextmanager
-    def bind(self, binder: Callable[[int], None], obj_id: int):
+    def bind(
+        self, binder: Callable[[int], None], obj_id: int
+    ) -> Iterator[None]:
         """Context-manager for glBind*, auto-unbinds to 0."""
         binder(obj_id)
         try:
