@@ -43,7 +43,7 @@ class Game:
         self.world = World()
         self.player = Player(x=12,
                              y=8.5,
-                             angle=180.0,
+                             angle=math.pi,
                              move_speed=MOVE_SPEED,
                              rot_speed=ROT_SPEED)
         # Instantiate enemies from world spawn definitions

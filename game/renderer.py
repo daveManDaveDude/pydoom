@@ -5,6 +5,8 @@ import os
 import ctypes
 import pygame
 import math
+import logging
+
 # Animation frame duration in milliseconds (ping-pong cycle)
 # Increased to slow the animation slightly
 _ANIM_FRAME_MS = 300
@@ -18,6 +20,9 @@ except ImportError:
 from .gl_resources import GLResourceManager
 from .config import CEILING_COLOR, WALL_SHADE_X, WALL_SHADE_Y, FLOOR_TEXTURE_FILE, CEILING_TEXTURE_FILE, WALL_TEXTURE_FILE, SPRITE_TEXTURE_FILE
 from .gl_utils import ShaderProgram, load_texture, setup_opengl, create_texture_from_surface
+
+# Local logger for shader helpers
+logger = logging.getLogger(__name__)
 from .wall_renderer import CpuWallRenderer
 
 def _delete_buffer(obj_id):
@@ -172,25 +177,12 @@ void main() {
                         self.sprite_texs[tex_name] = (tex_id, w, h)
         # Prepare UI overlay text (Press X to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
-        ui_surf = self.ui_font.render("Press X to quit", True, (255, 255, 255))
+        ui_surf = self.ui_font.render("Press X to eXit", True, (255, 255, 255))
         self.ui_text_width, self.ui_text_height = ui_surf.get_size()
         # Create UI texture
         self.ui_tex = create_texture_from_surface(ui_surf)
         # VBO for UI quad
         self.ui_vbo = self._res.gen(lambda: gl.glGenBuffers(1), _delete_buffer)
-        # Load ceiling texture
-        path_c = os.path.join(textures_dir, CEILING_TEXTURE_FILE)
-        img_c = pygame.image.load(path_c).convert_alpha()
-        twc, thc = img_c.get_size()
-        raw_c = pygame.image.tostring(img_c, "RGBA", True)
-        self.ceil_tex = self._res.gen(lambda: gl.glGenTextures(1), _delete_texture)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self.ceil_tex)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
-        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, twc, thc, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, raw_c)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
     def render(self, screen, world, player):
         # Clear color and depth buffers and disable depth testing for full-screen draws

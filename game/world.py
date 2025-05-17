@@ -1,5 +1,6 @@
 import os
 import json
+import math
 from .config import WORLD_FILE, DEFAULT_ENEMY_HEALTH
 from .enemy import Enemy
 
@@ -9,8 +10,8 @@ class World:
         # Initialize map and other world attributes
         self.powerup_pos = None
         self.powerup_angle = 0.0
-        # Initialize list of enemies
         self.enemies = []
+        self.sprites = []
         if map_grid is not None:
             self.map = map_grid
         else:
@@ -22,14 +23,14 @@ class World:
                 self.map = data.get('map', [])
                 # Load powerup attributes if specified
                 pu = data.get('powerup')
-                # If powerup specified as dict with pos and angle
+                # If powerup specified as dict with pos and angle (angle in degrees)
                 if isinstance(pu, dict):
                     pos = pu.get('pos')
                     if isinstance(pos, (list, tuple)) and len(pos) == 2:
                         self.powerup_pos = (float(pos[0]), float(pos[1]))
                     ang = pu.get('angle')
                     try:
-                        self.powerup_angle = float(ang)
+                        self.powerup_angle = math.radians(float(ang))
                     except Exception:
                         pass
                 # Legacy: powerup as simple [x, y]

@@ -1,1 +1,2 @@
-To implement projectile shooting in the PyDoom prototype, we'll introduce bullet entities, handle firing input, simulate bullet movement, manage enemy health (2 hits), show hit feedback, respawn enemies on death, and add a crosshair. each prompt that follows will be a step in the implermentation plan
+# After every patch:
+        #   Run: pytest -q --disable-warnings --maxfail=1
