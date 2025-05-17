@@ -6,7 +6,15 @@ import pygame
 from .world import World
 from .player import Player
 from .renderer import Renderer
-from .config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED, FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y, MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED, COLLISION_RADIUS
+from .config import (
+    SCREEN_WIDTH, SCREEN_HEIGHT, FPS, MOVE_SPEED, ROT_SPEED,
+    FOV, STEP_SIZE, MOUSE_SENSITIVITY, MOUSE_SENSITIVITY_Y,
+    MAX_PITCH, SPRITE_ROT_SPEED, ENEMY_SPEED,
+    COLLISION_RADIUS, BULLET_HIT_RADIUS,
+    ENEMY_RESPAWN_DELAY, ENEMY_LOS_DIRECT_DELAY,
+    HIT_FLASH_DURATION_MS
+)
+from .bullet import Bullet
 
 class Game:
     """Main Game class: handles initialization, loop, and high-level coordination."""
@@ -33,14 +41,16 @@ class Game:
         self.fps = FPS
         # World and Player
         self.world = World()
-        self.player = Player(x=3.5,
-                             y=3.5,
-                             angle=0.0,
+        self.player = Player(x=12,
+                             y=8.5,
+                             angle=math.pi,
                              move_speed=MOVE_SPEED,
                              rot_speed=ROT_SPEED)
         # Instantiate enemies from world spawn definitions
         # Store dynamic actors separately from static sprites
         self.enemies = list(self.world.enemies)
+        # Store active bullets/projectiles
+        self.bullets = []
         # Renderer
         # Pass world into renderer for wall raycasting
         self.renderer = Renderer(
@@ -59,9 +69,25 @@ class Game:
             # Quit on window close
             if event.type == pygame.QUIT:
                 self.running = False
-            # Quit on pressing Q
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_q:
-                self.running = False
+            # Key presses
+            elif event.type == pygame.KEYDOWN:
+                # Quit on pressing X
+                if event.key == pygame.K_x:
+                    self.running = False
+                # Fire bullet on spacebar
+                elif event.key == pygame.K_SPACE:
+                    # Spawn bullet slightly in front of player
+                    offset = 0.2
+                    bx = self.player.x + math.cos(self.player.angle) * offset
+                    by = self.player.y + math.sin(self.player.angle) * offset
+                    self.bullets.append(Bullet(bx, by, self.player.angle))
+            # Mouse click: fire bullet on left click
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Spawn bullet slightly in front of player
+                offset = 0.2
+                bx = self.player.x + math.cos(self.player.angle) * offset
+                by = self.player.y + math.sin(self.player.angle) * offset
+                self.bullets.append(Bullet(bx, by, self.player.angle))
 
     def update(self, dt):
         """Update game state: handle input and move player."""
@@ -88,19 +114,33 @@ class Game:
             self.world.powerup_angle += SPRITE_ROT_SPEED * dt
         # Enemy chasing logic: recompute path each frame towards player
         for enemy in self.enemies:
-            # Determine path on integer grid
-            path = enemy.find_path(self.world, (self.player.x, self.player.y))
-            if len(path) > 1:
-                # Next waypoint cell center
-                target_x = path[1][0] + 0.5
-                target_y = path[1][1] + 0.5
-            elif len(path) == 1:
-                # Already in same cell: head toward exact player position
+            # Skip enemies awaiting respawn
+            if getattr(enemy, 'respawn_timer', 0) > 0:
+                continue
+            # Update sight timer for line-of-sight detection
+            if self._is_visible_to_player(enemy.x, enemy.y):
+                enemy.sight_timer += dt
+            else:
+                enemy.sight_timer = 0.0
+            # Choose chase behavior: direct only after LOS has held for delay
+            if enemy.sight_timer >= ENEMY_LOS_DIRECT_DELAY:
+                # Direct pursuit: head toward exact player position
                 target_x = self.player.x
                 target_y = self.player.y
             else:
-                # No path available: skip movement
-                continue
+                # Pathfinding pursuit: follow next waypoint
+                path = enemy.find_path(self.world, (self.player.x, self.player.y))
+                if len(path) > 1:
+                    # Next waypoint cell center
+                    target_x = path[1][0] + 0.5
+                    target_y = path[1][1] + 0.5
+                elif len(path) == 1:
+                    # Same cell: head directly at player
+                    target_x = self.player.x
+                    target_y = self.player.y
+                else:
+                    # No path available: skip movement
+                    continue
             # Compute movement vector toward target
             dx = target_x - enemy.x
             dy = target_y - enemy.y
@@ -111,15 +151,54 @@ class Game:
                     step = dist
                 new_x = enemy.x + (dx / dist) * step
                 new_y = enemy.y + (dy / dist) * step
+                # Only move if not colliding with wall
                 if not self.world.is_wall(int(new_x), int(new_y)):
                     enemy.x = new_x
                     enemy.y = new_y
-        # Collision detection: if an enemy reaches the player, respawn it
+        # Collision detection: if an enemy reaches the player, schedule respawn
         for enemy in self.enemies:
+            # Skip enemies already dead/pending respawn
+            if getattr(enemy, 'respawn_timer', 0) > 0:
+                continue
             dx_e = enemy.x - self.player.x
             dy_e = enemy.y - self.player.y
             if math.hypot(dx_e, dy_e) < COLLISION_RADIUS:
-                self._respawn_enemy(enemy)
+                # Kill enemy and start respawn timer
+                enemy.health = 0
+                enemy.respawn_timer = ENEMY_RESPAWN_DELAY
+        # Update bullets: move, check lifespan and wall collisions
+        for bullet in self.bullets:
+            bullet.update(dt)
+            # Deactivate if out of lifespan or collided with a wall
+            if not bullet.active or self.world.is_wall(int(bullet.x), int(bullet.y)):
+                bullet.active = False
+                continue
+            # Check collision with alive enemies
+            for enemy in self.enemies:
+                if getattr(enemy, 'respawn_timer', 0) > 0:
+                    continue
+                dx_b = bullet.x - enemy.x
+                dy_b = bullet.y - enemy.y
+                if math.hypot(dx_b, dy_b) < BULLET_HIT_RADIUS:
+                    # Hit detected: deactivate bullet and damage enemy
+                    bullet.active = False
+                    # Trigger hit flash feedback
+                    self.renderer.hit_flash_until = pygame.time.get_ticks() + HIT_FLASH_DURATION_MS
+                    enemy.health -= 1
+                    # Start respawn timer if health depleted
+                    if enemy.health <= 0:
+                        enemy.respawn_timer = ENEMY_RESPAWN_DELAY
+                    break
+        # Remove inactive bullets
+        self.bullets = [b for b in self.bullets if b.active]
+        # Process enemy respawn timers
+        for enemy in self.enemies:
+            if getattr(enemy, 'respawn_timer', 0) > 0:
+                enemy.respawn_timer -= dt
+                if enemy.respawn_timer <= 0:
+                    # Time to respawn: teleport and reset health
+                    self._respawn_enemy(enemy)
+        # End of update
 
     def _respawn_enemy(self, enemy):
         """
@@ -147,11 +226,37 @@ class Game:
             cx, cy = rx + 0.5, ry + 0.5
             if math.hypot(cx - self.player.x, cy - self.player.y) < 2.0:
                 continue
-            # Found valid spawn
+            # Ensure spawn is not visible to player (blocked by walls)
+            if self._is_visible_to_player(cx, cy):
+                continue
+            # Found valid spawn: reposition and reset health
             enemy.x = cx
             enemy.y = cy
+            # Restore full health upon respawn and clear respawn timer
+            if hasattr(enemy, 'max_health'):
+                enemy.health = enemy.max_health
+            if hasattr(enemy, 'respawn_timer'):
+                enemy.respawn_timer = 0.0
             return
         # Fallback: do nothing if no suitable tile found
+
+    def _is_visible_to_player(self, x, y):
+        """
+        Return True if (x, y) is visible to the player (no wall blocking).
+        """
+        px, py = self.player.x, self.player.y
+        dx = x - px
+        dy = y - py
+        dist = math.hypot(dx, dy)
+        # Sample along the line at intervals, check for walls
+        steps = max(int(dist / 0.1), 1)
+        for i in range(1, steps):
+            t = i / steps
+            ix = px + dx * t
+            iy = py + dy * t
+            if self.world.is_wall(int(ix), int(iy)):
+                return False
+        return True
 
     def render(self):
         """Render the entire scene."""

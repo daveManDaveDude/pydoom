@@ -5,6 +5,8 @@ import os
 import ctypes
 import pygame
 import math
+import logging
+
 # Animation frame duration in milliseconds (ping-pong cycle)
 # Increased to slow the animation slightly
 _ANIM_FRAME_MS = 300
@@ -18,6 +20,9 @@ except ImportError:
 from .gl_resources import GLResourceManager
 from .config import CEILING_COLOR, WALL_SHADE_X, WALL_SHADE_Y, FLOOR_TEXTURE_FILE, CEILING_TEXTURE_FILE, WALL_TEXTURE_FILE, SPRITE_TEXTURE_FILE
 from .gl_utils import ShaderProgram, load_texture, setup_opengl, create_texture_from_surface
+
+# Local logger for shader helpers
+logger = logging.getLogger(__name__)
 from .wall_renderer import CpuWallRenderer
 
 def _delete_buffer(obj_id):
@@ -69,6 +74,8 @@ class Renderer:
         self.half_fov = fov / 2.0
         # GL resource manager to track and clean up GL objects
         self._res = GLResourceManager()
+        # Hit flash timer (milliseconds timestamp until which to flash)
+        self.hit_flash_until = 0
         # Projection plane distance for wall heights
         self.proj_plane_dist = (self.w / 2.0) / __import__('math').tan(self.half_fov)
         # Basic OpenGL state
@@ -168,27 +175,14 @@ void main() {
                         tex_id = load_texture(sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP)
                         w, h = sp_surf.get_size()
                         self.sprite_texs[tex_name] = (tex_id, w, h)
-        # Prepare UI overlay text (Press Q to quit)
+        # Prepare UI overlay text (Press X to quit)
         self.ui_font = pygame.font.SysFont(None, 24)
-        ui_surf = self.ui_font.render("Press Q to quit", True, (255, 255, 255))
+        ui_surf = self.ui_font.render("Press X to eXit", True, (255, 255, 255))
         self.ui_text_width, self.ui_text_height = ui_surf.get_size()
         # Create UI texture
         self.ui_tex = create_texture_from_surface(ui_surf)
         # VBO for UI quad
         self.ui_vbo = self._res.gen(lambda: gl.glGenBuffers(1), _delete_buffer)
-        # Load ceiling texture
-        path_c = os.path.join(textures_dir, CEILING_TEXTURE_FILE)
-        img_c = pygame.image.load(path_c).convert_alpha()
-        twc, thc = img_c.get_size()
-        raw_c = pygame.image.tostring(img_c, "RGBA", True)
-        self.ceil_tex = self._res.gen(lambda: gl.glGenTextures(1), _delete_texture)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self.ceil_tex)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
-        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
-        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGBA, twc, thc, 0, gl.GL_RGBA, gl.GL_UNSIGNED_BYTE, raw_c)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
 
     def render(self, screen, world, player):
         # Clear color and depth buffers and disable depth testing for full-screen draws
@@ -388,7 +382,11 @@ void main() {
             mid_y = self.h * 0.5 + player.pitch
             depth = self.wall_renderer.depth_buffer
             px0, py0 = player.x, player.y
+            # Dynamic enemies (chasing the player)
             for enemy in world.enemies:
+                # Skip enemies pending respawn (invisible during delay)
+                if getattr(enemy, 'respawn_timer', 0) > 0:
+                    continue
                 pxw, pyw = enemy.x, enemy.y
                 world_h2 = enemy.height or 0.25
                 textures = enemy.textures or []
@@ -505,6 +503,45 @@ void main() {
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
         self.wall_tex_shader.stop()
+        # Crosshair overlay: draw a simple plus at screen center
+        # Switch to orthographic projection for 2D drawing
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
+        gl.glOrtho(0, self.w, self.h, 0, -1, 1)
+        gl.glMatrixMode(gl.GL_MODELVIEW)
+        gl.glPushMatrix()
+        gl.glLoadIdentity()
+        # Draw crosshair lines (10px total length)
+        gl.glDisable(gl.GL_TEXTURE_2D)
+        gl.glColor3f(1.0, 1.0, 1.0)
+        gl.glLineWidth(2.0)
+        cx = self.w // 2
+        cy = self.h // 2
+        gl.glBegin(gl.GL_LINES)
+        gl.glVertex2f(cx - 5, cy)
+        gl.glVertex2f(cx + 5, cy)
+        gl.glVertex2f(cx, cy - 5)
+        gl.glVertex2f(cx, cy + 5)
+        gl.glEnd()
+        # Flash red crosshair on hit
+        if pygame.time.get_ticks() < self.hit_flash_until:
+            gl.glColor3f(1.0, 0.0, 0.0)
+            gl.glLineWidth(4.0)
+            gl.glBegin(gl.GL_LINES)
+            gl.glVertex2f(cx - 5, cy)
+            gl.glVertex2f(cx + 5, cy)
+            gl.glVertex2f(cx, cy - 5)
+            gl.glVertex2f(cx, cy + 5)
+            gl.glEnd()
+            # restore white crosshair width
+            gl.glColor3f(1.0, 1.0, 1.0)
+            gl.glLineWidth(2.0)
+        gl.glEnable(gl.GL_TEXTURE_2D)
+        # Restore previous matrices
+        gl.glPopMatrix()
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glPopMatrix()
         # Swap buffers
         pygame.display.flip()
 

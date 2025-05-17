@@ -12,9 +12,11 @@ MOVE_SPEED = 3.0
 ROT_SPEED = 2.0
 # Enemy settings
 # Movement speed in map units per second for AI-controlled enemies
-ENEMY_SPEED = 2.0
+ENEMY_SPEED = 1.5
 # Collision detection: if enemy is this close to player, trigger respawn (map units)
 COLLISION_RADIUS = 0.5
+# Default enemy hit points (number of bullet hits to kill)
+DEFAULT_ENEMY_HEALTH = 5
 
 # Raycasting settings
 # Field of view angle (in radians)
@@ -47,3 +49,17 @@ WALL_TEXTURE_FILE = 'brick_wall.png'
 SPRITE_TEXTURE_FILE = 'health-power-up.png'
 # Rotation speed for powerup sprite (radians per second)
 SPRITE_ROT_SPEED = math.pi / 2.0
+
+# Projectile settings
+# Speed of bullets (map units per second)
+BULLET_SPEED = 10.0
+# Time in seconds before a bullet expires
+BULLET_LIFESPAN = 2.0
+# Collision radius for bullet-enemy hits (map units)
+BULLET_HIT_RADIUS = 0.5
+# Time delay before enemy respawn after death (seconds)
+ENEMY_RESPAWN_DELAY = 2.0
+# Delay before enemy switches to direct pursuit after gaining line-of-sight (seconds)
+ENEMY_LOS_DIRECT_DELAY = 0.5
+# Duration for hit marker flash (milliseconds)
+HIT_FLASH_DURATION_MS = 200
