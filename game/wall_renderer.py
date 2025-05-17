@@ -1,21 +1,45 @@
 """
 Module defining an interface for wall rendering (casting) and a CPU-based implementation.
 """
+
+from __future__ import annotations
 import ctypes
 import math
 import numpy as np
 import OpenGL.GL as gl  # noqa: N811
+from .config import TILE_WALL
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .world import World
+    from .player import Player
+    from .gl_utils import ShaderProgram
+
 
 class WallRenderer:
     """Abstract base class for wall rendering implementations."""
-    def render(self, world, player):
-        raise NotImplementedError("WallRenderer.render must be implemented by subclasses")
+
+    def render(self, world: World, player: Player) -> None:
+        raise NotImplementedError(
+            "WallRenderer.render must be implemented by subclasses"
+        )
+
 
 class CpuWallRenderer(WallRenderer):
     """CPU-based wall caster: performs DDA per column and draws textured walls."""
-    def __init__(self, width, height, fov, proj_plane_dist,
-                 wall_texture, shader_program,
-                 pos_attr, uv_attr, u_tex_loc):
+
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        fov: float,
+        proj_plane_dist: float,
+        wall_texture: int,
+        shader_program: ShaderProgram,
+        pos_attr: int,
+        uv_attr: int,
+        u_tex_loc: int,
+    ) -> None:
         self.w = width
         self.h = height
         self.fov = fov
@@ -31,7 +55,7 @@ class CpuWallRenderer(WallRenderer):
         # Depth buffer for occlusion per column
         self.depth_buffer = np.zeros(self.w, dtype=np.float32)
 
-    def render(self, world, player):
+    def render(self, world: World, player: Player) -> None:
         # Prepare vertex buffer: each wall slice is two triangles (6 verts) with (x,y,u,v)
         verts_uv = np.zeros((self.w * 6, 4), dtype=np.float32)
         idx = 0
@@ -48,21 +72,30 @@ class CpuWallRenderer(WallRenderer):
             delta_x = abs(1.0 / dir_x) if dir_x != 0 else 1e9
             delta_y = abs(1.0 / dir_y) if dir_y != 0 else 1e9
             if dir_x < 0:
-                step_x = -1; side_x = (player.x - map_x) * delta_x
+                step_x = -1
+                side_x = (player.x - map_x) * delta_x
             else:
-                step_x = 1; side_x = (map_x + 1 - player.x) * delta_x
+                step_x = 1
+                side_x = (map_x + 1 - player.x) * delta_x
             if dir_y < 0:
-                step_y = -1; side_y = (player.y - map_y) * delta_y
+                step_y = -1
+                side_y = (player.y - map_y) * delta_y
             else:
-                step_y = 1; side_y = (map_y + 1 - player.y) * delta_y
+                step_y = 1
+                side_y = (map_y + 1 - player.y) * delta_y
             # Perform DDA to find wall hit
-            hit = False; side = 0
+            hit = False
+            side = 0
             while not hit:
                 if side_x < side_y:
-                    side_x += delta_x; map_x += step_x; side = 0
+                    side_x += delta_x
+                    map_x += step_x
+                    side = 0
                 else:
-                    side_y += delta_y; map_y += step_y; side = 1
-                if world.map[map_y][map_x]:
+                    side_y += delta_y
+                    map_y += step_y
+                    side = 1
+                if world.map[map_y][map_x] == TILE_WALL:
                     hit = True
             # Calculate perpendicular distance
             # Distance from player to wall along the ray (before fisheye correction)
@@ -96,21 +129,43 @@ class CpuWallRenderer(WallRenderer):
                 wallX = player.x + dist * dir_x
             u = wallX - math.floor(wallX)
             # Two triangles per slice
-            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]; idx += 1
-            verts_uv[idx] = [x0_ndc, y0_ndc, u, 0.0]; idx += 1
-            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]; idx += 1
-            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]; idx += 1
-            verts_uv[idx] = [x1_ndc, y1_ndc, u, 1.0]; idx += 1
-            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]; idx += 1
+            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]
+            idx += 1
+            verts_uv[idx] = [x0_ndc, y0_ndc, u, 0.0]
+            idx += 1
+            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]
+            idx += 1
+            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]
+            idx += 1
+            verts_uv[idx] = [x1_ndc, y1_ndc, u, 1.0]
+            idx += 1
+            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]
+            idx += 1
         # Upload vertex data and draw
         self.shader.use()
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
-        gl.glBufferData(gl.GL_ARRAY_BUFFER, verts_uv.nbytes, verts_uv, gl.GL_DYNAMIC_DRAW)
+        gl.glBufferData(
+            gl.GL_ARRAY_BUFFER, verts_uv.nbytes, verts_uv, gl.GL_DYNAMIC_DRAW
+        )
         stride = verts_uv.strides[0]
         gl.glEnableVertexAttribArray(self.pos_attr)
-        gl.glVertexAttribPointer(self.pos_attr, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, ctypes.c_void_p(0))
+        gl.glVertexAttribPointer(
+            self.pos_attr,
+            2,
+            gl.GL_FLOAT,
+            gl.GL_FALSE,
+            stride,
+            ctypes.c_void_p(0),
+        )
         gl.glEnableVertexAttribArray(self.uv_attr)
-        gl.glVertexAttribPointer(self.uv_attr, 2, gl.GL_FLOAT, gl.GL_FALSE, stride, ctypes.c_void_p(8))
+        gl.glVertexAttribPointer(
+            self.uv_attr,
+            2,
+            gl.GL_FLOAT,
+            gl.GL_FALSE,
+            stride,
+            ctypes.c_void_p(8),
+        )
         gl.glActiveTexture(gl.GL_TEXTURE0)
         gl.glBindTexture(gl.GL_TEXTURE_2D, self.wall_tex)
         gl.glUniform1i(self.u_tex_loc, 0)

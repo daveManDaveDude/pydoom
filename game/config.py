@@ -38,15 +38,18 @@ MOUSE_SENSITIVITY_Y = 1.0
 MAX_PITCH = SCREEN_HEIGHT // 2
 # Texture settings
 # Filename of the floor texture (located in game/textures directory)
-FLOOR_TEXTURE_FILE = 'cracked_stone_floor.png'
+FLOOR_TEXTURE_FILE = "cracked_stone_floor.png"
 # World file: JSON definition of the map layout
-WORLD_FILE = 'worlds/default.json'
+WORLD_FILE = "worlds/default.json"
+# Tile types for map representation: empty vs wall
+TILE_EMPTY = 0
+TILE_WALL = 1
 # Filename of the ceiling texture (located in game/textures directory)
-CEILING_TEXTURE_FILE = 'stained_ceiling_tiles.png'
+CEILING_TEXTURE_FILE = "stained_ceiling_tiles.png"
 # Filename of the wall texture (located in game/textures directory)
-WALL_TEXTURE_FILE = 'brick_wall.png'
+WALL_TEXTURE_FILE = "brick_wall.png"
 # Filename of the sprite to render (located in game/textures directory)
-SPRITE_TEXTURE_FILE = 'health-power-up.png'
+SPRITE_TEXTURE_FILE = "health-power-up.png"
 # Rotation speed for powerup sprite (radians per second)
 SPRITE_ROT_SPEED = math.pi / 2.0
 

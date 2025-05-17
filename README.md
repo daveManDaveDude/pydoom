@@ -23,11 +23,18 @@ The entire project including this readme have been created by ai using chat GPT 
 - [pygame](https://pypi.org/project/pygame/)
 - [PyOpenGL](https://pypi.org/project/PyOpenGL/)
 - (Optional) `PyOpenGL_accelerate` for performance
+- (Dev) **black** for code formatting
 
 Install dependencies with:
 
 ```bash
 pip install pygame PyOpenGL PyOpenGL_accelerate
+```
+
+To install development tools:
+
+```bash
+pip install black
 ```
 
 ---
@@ -46,6 +53,16 @@ pip install pygame PyOpenGL PyOpenGL_accelerate
 
 ---
 
+## Development
+
+Format the code with black according to the configuration in `pyproject.toml`:
+
+```bash
+black . -l 80
+```
+
+---
+
 ## Configuration
 
 Most settings are in `game/config.py`:
@@ -58,18 +75,21 @@ Most settings are in `game/config.py`:
   - `MOUSE_SENSITIVITY`, `MOUSE_SENSITIVITY_Y`, `MAX_PITCH`
 - **Textures & World**
   - `FLOOR_TEXTURE_FILE`, `WALL_TEXTURE_FILE`, etc.
-  - `WORLD_FILE` points to a JSON map in `game/worlds/`
+  - `WORLD_FILE` points to a JSON map in `game/worlds/` (must exist and define a 2D `map` array)
+- **Map Tiles**
+  - `TILE_EMPTY` (0), `TILE_WALL` (1) for future tile-type extensions
 
 ---
 
 ## Controls
 
-- **W / Up Arrow**: Move forward
-- **S / Down Arrow**: Move backward
-- **A / Left Arrow**: Strafe left
-- **D / Right Arrow**: Strafe right
-- **Mouse**: Look around (yaw & pitch)
-- **Q** or window close: Quit
+-- **W / Up Arrow**: Move forward
+-- **S / Down Arrow**: Move backward
+-- **A / Left Arrow**: Strafe left
+-- **D / Right Arrow**: Strafe right
+-- **Mouse**: Look around (yaw & pitch)
+-- **Spacebar** or **Left Click**: Fire bullet
+-- **X** key or window close: Quit
 
 ---
 
@@ -83,7 +103,7 @@ pydoom/
 │   ├── player.py           # Player state & movement logic
 │   ├── world.py            # Map loading & collision
 │   ├── renderer.py         # OpenGL‑based rendering
-│   ├── wall_renderer.py    # CPU raycasting fallback
+│   ├── wall_renderer.py    # CPU-based wall casting implementation
 │   ├── gl_utils.py         # Shader & texture helpers
 │   ├── gl_resources/       # GLSL shader sources
 │   ├── textures/           # PNG assets (walls, floor, sprites…)
@@ -100,6 +120,15 @@ pydoom/
 
 - **Maps**: Add or modify JSON files under `game/worlds/`. A map JSON should define a 2D grid (`map`) and optional `powerup` or `sprites` entries.
 - **Textures**: Place new `.png` files in `game/textures/` and update `config.py` to point at them.
+---
+
+## Testing
+
+Run the full test suite with pytest from the project root:
+
+```bash
+pytest -q
+```
 
 ---
 

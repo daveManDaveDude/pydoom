@@ -1,6 +1,7 @@
 import OpenGL.GL as gl
 from game.gl_resources import GLResourceManager
 
+
 def test_manager_tracks_and_deletes(monkeypatch):
     mgr = GLResourceManager()
     created = []
