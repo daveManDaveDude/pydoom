@@ -2,9 +2,74 @@ from __future__ import annotations
 import os
 import json
 import math
-from typing import Optional, List
-from .config import WORLD_FILE, DEFAULT_ENEMY_HEALTH, TILE_WALL, TILE_EMPTY
+from typing import Optional, List, TYPE_CHECKING
+from .config import (
+    WORLD_FILE,
+    DEFAULT_ENEMY_HEALTH,
+    TILE_WALL,
+    TILE_EMPTY,
+    TILE_DOOR,
+)
 from .enemy import Enemy
+
+if TYPE_CHECKING:
+    from .player import Player
+
+
+class Door:
+    """Door entity tracking position and open/closed state."""
+
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+        # 'closed', 'opening', 'open', 'closing'
+        self.state = "closed"
+        # timer for auto-close delay
+        self.timer: float = 0.0
+        # 0.0 (closed) .. 1.0 (fully open) sliding progress
+        self.progress: float = 0.0
+        # sliding axis ('x' or 'y') and direction (+1 or -1)
+        self.slide_axis: str = "x"
+        self.slide_dir: int = 1
+
+    def update(self, player: Player, dt: float) -> None:
+        """
+        Handle door state: auto-open when approached, auto-close after delay,
+        and animate sliding over DOOR_ANIM_DURATION seconds.
+        """
+        from .config import (
+            DOOR_OPEN_DISTANCE,
+            DOOR_CLOSE_DELAY,
+            DOOR_ANIM_DURATION,
+        )
+
+        # distance squared from player to door center
+        dx = player.x - (self.x + 0.5)
+        dy = player.y - (self.y + 0.5)
+        dist2 = dx * dx + dy * dy
+        # State machine for opening/closing
+        if self.state == "closed":
+            if dist2 <= DOOR_OPEN_DISTANCE * DOOR_OPEN_DISTANCE:
+                self.state = "opening"
+                self.timer = 0.0
+        elif self.state == "opening":
+            self.progress = min(1.0, self.progress + dt / DOOR_ANIM_DURATION)
+            if self.progress >= 1.0:
+                self.state = "open"
+                self.timer = 0.0
+        elif self.state == "open":
+            # reset close timer when player in range
+            if dist2 <= DOOR_OPEN_DISTANCE * DOOR_OPEN_DISTANCE:
+                self.timer = 0.0
+            else:
+                self.timer += dt
+                if self.timer >= DOOR_CLOSE_DELAY:
+                    self.state = "closing"
+        elif self.state == "closing":
+            self.progress = max(0.0, self.progress - dt / DOOR_ANIM_DURATION)
+            if self.progress <= 0.0:
+                self.state = "closed"
+                self.timer = 0.0
 
 
 class World:
@@ -16,6 +81,7 @@ class World:
         self.powerup_angle = 0.0
         self.enemies = []
         self.sprites = []
+        self.doors: List[Door] = []
         if map_grid is not None:
             self.map = map_grid
         else:
@@ -141,8 +207,97 @@ class World:
         self.height = len(self.map)
         self.width = len(self.map[0]) if self.height > 0 else 0
 
+        for y, row in enumerate(self.map):
+            for x, tile in enumerate(row):
+                if tile == TILE_DOOR:
+                    self.doors.append(Door(x, y))
+
+        # Determine sliding orientation for each door based on surrounding walls
+        for door in self.doors:
+            x, y = door.x, door.y
+            # check vertical neighbors (walls above/below) => slide along x
+            if (
+                y - 1 >= 0
+                and y + 1 < self.height
+                and self.map[y - 1][x] == TILE_WALL
+                and self.map[y + 1][x] == TILE_WALL
+            ):
+                door.slide_axis = "x"
+                door.slide_dir = (
+                    1
+                    if x + 1 < self.width and self.map[y][x + 1] == TILE_EMPTY
+                    else -1
+                )
+            # check horizontal neighbors (walls left/right) => slide along y
+            elif (
+                x - 1 >= 0
+                and x + 1 < self.width
+                and self.map[y][x - 1] == TILE_WALL
+                and self.map[y][x + 1] == TILE_WALL
+            ):
+                door.slide_axis = "y"
+                door.slide_dir = (
+                    1
+                    if y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY
+                    else -1
+                )
+
+        self.room_map: List[List[int]] = [
+            [-1] * self.width for _ in range(self.height)
+        ]
+        room_id = 0
+        for ry in range(self.height):
+            for rx in range(self.width):
+                if (
+                    self.map[ry][rx] != TILE_EMPTY
+                    or self.room_map[ry][rx] != -1
+                ):
+                    continue
+                stack = [(rx, ry)]
+                while stack:
+                    cx, cy = stack.pop()
+                    if (
+                        cx < 0
+                        or cy < 0
+                        or cx >= self.width
+                        or cy >= self.height
+                        or self.map[cy][cx] != TILE_EMPTY
+                        or self.room_map[cy][cx] != -1
+                    ):
+                        continue
+                    self.room_map[cy][cx] = room_id
+                    stack.extend(
+                        [(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)]
+                    )
+                room_id += 1
+        self.num_rooms = room_id
+
+        for enemy in self.enemies:
+            exi, eyi = int(enemy.x), int(enemy.y)
+            enemy.home_room = self.room_map[eyi][exi]
+
+    def update_doors(self, player: Player, dt: float) -> None:
+        """Update door states (auto-open/close) based on the player's position."""
+        for door in self.doors:
+            door.update(player, dt)
+
     def is_wall(self, x: float, y: float) -> bool:
-        """Return True if (x, y) is a wall or out of bounds."""
+        """Return True if (x, y) is a wall, a closed door, or out of bounds."""
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             return True
-        return self.map[int(y)][int(x)] == TILE_WALL
+        tx, ty = int(x), int(y)
+        tile = self.map[ty][tx]
+        if tile == TILE_DOOR:
+            # Closed doors block passage; open doors are passable
+            for door in self.doors:
+                if door.x == tx and door.y == ty:
+                    return door.state != "open"
+            return True
+        return tile == TILE_WALL
+
+    def get_room_id(self, x: float, y: float) -> Optional[int]:
+        """Return the room ID at the given world coordinates, or None if out of bounds."""
+        ix, iy = int(x), int(y)
+        if ix < 0 or iy < 0 or ix >= self.width or iy >= self.height:
+            return None
+        return self.room_map[iy][ix]

@@ -104,6 +104,8 @@ class Game:
         self.player.pitch -= dy * MOUSE_SENSITIVITY_Y
         # Clamp pitch to limits
         self.player.pitch = max(-MAX_PITCH, min(MAX_PITCH, self.player.pitch))
+        # Auto‑open/close doors when player moves
+        self.world.update_doors(self.player, dt)
         # Keyboard movement: forward/backward and strafing
         keys = self.input.get_key_state()
         # Forward/backward
@@ -122,8 +124,11 @@ class Game:
             and self.world.powerup_angle is not None
         ):
             self.world.powerup_angle += SPRITE_ROT_SPEED * dt
-        # Enemy chasing logic: recompute path each frame towards player
+        # Enemy chasing logic: only pursue if in same room as player
+        player_room = self.world.get_room_id(self.player.x, self.player.y)
         for enemy in self.enemies:
+            if getattr(enemy, "home_room", None) != player_room:
+                continue
             # Skip enemies awaiting respawn
             if getattr(enemy, "respawn_timer", 0) > 0:
                 continue

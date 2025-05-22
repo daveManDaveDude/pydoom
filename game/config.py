@@ -41,13 +41,22 @@ MAX_PITCH = SCREEN_HEIGHT // 2
 FLOOR_TEXTURE_FILE = "cracked_stone_floor.png"
 # World file: JSON definition of the map layout
 WORLD_FILE = "worlds/default.json"
-# Tile types for map representation: empty vs wall
+# Tile types for map representation: empty vs wall vs door
 TILE_EMPTY = 0
 TILE_WALL = 1
+TILE_DOOR = 2
 # Filename of the ceiling texture (located in game/textures directory)
 CEILING_TEXTURE_FILE = "stained_ceiling_tiles.png"
 # Filename of the wall texture (located in game/textures directory)
 WALL_TEXTURE_FILE = "brick_wall.png"
+# Filename of the door texture (located in game/textures directory)
+DOOR_TEXTURE_FILE = "metal_wall.png"
+# Distance (map units) within which a door auto-opens when the player is close
+DOOR_OPEN_DISTANCE = 2.0
+# Time in seconds after which an open door closes when the player leaves vicinity
+DOOR_CLOSE_DELAY = 3.0
+# Time in seconds for the door sliding animation (opening/closing)
+DOOR_ANIM_DURATION = 2.5
 # Filename of the sprite to render (located in game/textures directory)
 SPRITE_TEXTURE_FILE = "health-power-up.png"
 # Rotation speed for powerup sprite (radians per second)

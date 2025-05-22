@@ -32,6 +32,7 @@ from .config import (
     FLOOR_TEXTURE_FILE,
     CEILING_TEXTURE_FILE,
     WALL_TEXTURE_FILE,
+    DOOR_TEXTURE_FILE,
     SPRITE_TEXTURE_FILE,
 )
 from .gl_utils import (
@@ -193,17 +194,19 @@ void main() {
         self.wall_tex_vbo = self._res.gen(
             lambda: gl.glGenBuffers(1), _delete_buffer
         )
-        # Load wall texture
         self.wall_tex = load_texture(
             os.path.join(textures_dir, WALL_TEXTURE_FILE)
         )
-        # CPU-based wall renderer
+        self.door_tex = load_texture(
+            os.path.join(textures_dir, DOOR_TEXTURE_FILE)
+        )
         self.wall_renderer = CpuWallRenderer(
             self.w,
             self.h,
             self.fov,
             self.proj_plane_dist,
             self.wall_tex,
+            self.door_tex,
             self.wall_tex_shader,
             self.wall_pos2Attr,
             self.wall_uvAttr,

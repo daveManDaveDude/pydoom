@@ -7,7 +7,7 @@ import ctypes
 import math
 import numpy as np
 import OpenGL.GL as gl  # noqa: N811
-from .config import TILE_WALL
+from .config import TILE_WALL, TILE_DOOR
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -35,6 +35,7 @@ class CpuWallRenderer(WallRenderer):
         fov: float,
         proj_plane_dist: float,
         wall_texture: int,
+        door_texture: int,
         shader_program: ShaderProgram,
         pos_attr: int,
         uv_attr: int,
@@ -46,6 +47,7 @@ class CpuWallRenderer(WallRenderer):
         self.half_fov = fov / 2.0
         self.proj_plane_dist = proj_plane_dist
         self.wall_tex = wall_texture
+        self.door_tex = door_texture
         self.shader = shader_program
         self.pos_attr = pos_attr
         self.uv_attr = uv_attr
@@ -56,9 +58,9 @@ class CpuWallRenderer(WallRenderer):
         self.depth_buffer = np.zeros(self.w, dtype=np.float32)
 
     def render(self, world: World, player: Player) -> None:
-        # Prepare vertex buffer: each wall slice is two triangles (6 verts) with (x,y,u,v)
-        verts_uv = np.zeros((self.w * 6, 4), dtype=np.float32)
-        idx = 0
+        # Prepare separate vertex lists for wall and door slices
+        wall_slices: list[np.ndarray] = []
+        door_slices: list[np.ndarray] = []
         cos_pa = math.cos(player.angle)
         sin_pa = math.sin(player.angle)
         for i in range(self.w):
@@ -86,6 +88,7 @@ class CpuWallRenderer(WallRenderer):
             # Perform DDA to find wall hit
             hit = False
             side = 0
+            cur_tile = None
             while not hit:
                 if side_x < side_y:
                     side_x += delta_x
@@ -95,83 +98,121 @@ class CpuWallRenderer(WallRenderer):
                     side_y += delta_y
                     map_y += step_y
                     side = 1
-                if world.map[map_y][map_x] == TILE_WALL:
+                cell = world.map[map_y][map_x]
+                if cell == TILE_WALL:
                     hit = True
-            # Calculate perpendicular distance
-            # Distance from player to wall along the ray (before fisheye correction)
+                    cur_tile = TILE_WALL
+                elif cell == TILE_DOOR:
+                    door_obj = next(
+                        (
+                            d
+                            for d in world.doors
+                            if d.x == map_x and d.y == map_y
+                        ),
+                        None,
+                    )
+                    # Treat a fully open door as empty to hit walls behind it
+                    if door_obj is not None and door_obj.progress >= 1.0:
+                        continue
+                    hit = True
+                    cur_tile = TILE_DOOR
+            # Calculate perpendicular distance (avoid fish-eye)
             if side == 0:
                 dist = (map_x - player.x + (1 - step_x) / 2) / dir_x
             else:
                 dist = (map_y - player.y + (1 - step_y) / 2) / dir_y
-            # Correct distance to avoid fish-eye effect
-            perp = dist * math.cos(angle_off)
-            perp = max(perp, 1e-3)
-            # Store perpendicular distance for sprite occlusion
+            perp = max(dist * math.cos(angle_off), 1e-3)
             self.depth_buffer[i] = perp
-            # Wall slice height in pixels
+            # Compute slice extents and texture coordinate
             slice_h = int(self.proj_plane_dist / perp)
-            # Vertical slice extents (centered and taking pitch into account)
             mid = self.h / 2 + player.pitch
-            y0 = mid - slice_h / 2.0
-            y1 = mid + slice_h / 2.0
-            # Normalize to NDC (-1..1)
-            inv_h = 1.0 / (self.h - 1.0)
-            y0_ndc = (y0 * inv_h) * 2.0 - 1.0
-            y1_ndc = (y1 * inv_h) * 2.0 - 1.0
-            inv_w = 1.0 / (self.w - 1.0)
-            x0_ndc = (i * inv_w) * 2.0 - 1.0
-            x1_ndc = ((i + 1) * inv_w) * 2.0 - 1.0
-            # Texture coordinate (u) based on wall hit position
-            # Calculate exact hit position on the wall for texture coordinate using raw distance
+            y0_ndc = ((mid - slice_h / 2) / (self.h - 1) * 2) - 1
+            y1_ndc = ((mid + slice_h / 2) / (self.h - 1) * 2) - 1
+            inv_w = 1.0 / (self.w - 1)
+            x0_ndc = (i * inv_w) * 2 - 1
+            x1_ndc = ((i + 1) * inv_w) * 2 - 1
             if side == 0:
                 wallX = player.y + dist * dir_y
             else:
                 wallX = player.x + dist * dir_x
             u = wallX - math.floor(wallX)
             # Two triangles per slice
-            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]
-            idx += 1
-            verts_uv[idx] = [x0_ndc, y0_ndc, u, 0.0]
-            idx += 1
-            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]
-            idx += 1
-            verts_uv[idx] = [x1_ndc, y0_ndc, u, 0.0]
-            idx += 1
-            verts_uv[idx] = [x1_ndc, y1_ndc, u, 1.0]
-            idx += 1
-            verts_uv[idx] = [x0_ndc, y1_ndc, u, 1.0]
-            idx += 1
-        # Upload vertex data and draw
-        self.shader.use()
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
-        gl.glBufferData(
-            gl.GL_ARRAY_BUFFER, verts_uv.nbytes, verts_uv, gl.GL_DYNAMIC_DRAW
-        )
-        stride = verts_uv.strides[0]
-        gl.glEnableVertexAttribArray(self.pos_attr)
-        gl.glVertexAttribPointer(
-            self.pos_attr,
-            2,
-            gl.GL_FLOAT,
-            gl.GL_FALSE,
-            stride,
-            ctypes.c_void_p(0),
-        )
-        gl.glEnableVertexAttribArray(self.uv_attr)
-        gl.glVertexAttribPointer(
-            self.uv_attr,
-            2,
-            gl.GL_FLOAT,
-            gl.GL_FALSE,
-            stride,
-            ctypes.c_void_p(8),
-        )
-        gl.glActiveTexture(gl.GL_TEXTURE0)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self.wall_tex)
-        gl.glUniform1i(self.u_tex_loc, 0)
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, self.w * 6)
-        gl.glDisableVertexAttribArray(self.pos_attr)
-        gl.glDisableVertexAttribArray(self.uv_attr)
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-        self.shader.stop()
+            slice_uv = np.array(
+                [
+                    [x0_ndc, y1_ndc, u, 1.0],
+                    [x0_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y0_ndc, u, 0.0],
+                    [x1_ndc, y1_ndc, u, 1.0],
+                    [x0_ndc, y1_ndc, u, 1.0],
+                ],
+                dtype=np.float32,
+            )
+            if cur_tile == TILE_WALL:
+                wall_slices.append(slice_uv)
+            elif cur_tile == TILE_DOOR:
+                door_obj = next(
+                    (d for d in world.doors if d.x == map_x and d.y == map_y),
+                    None,
+                )
+                if door_obj is not None and door_obj.progress > 0.0:
+                    if door_obj.slide_axis == "x":
+                        off = (
+                            door_obj.progress
+                            * (y1_ndc - y0_ndc)
+                            * door_obj.slide_dir
+                        )
+                        slice_uv[:, 0] += off
+                    else:
+                        off = (
+                            door_obj.progress
+                            * (y1_ndc - y0_ndc)
+                            * door_obj.slide_dir
+                        )
+                        slice_uv[:, 1] += off
+                door_slices.append(slice_uv)
+
+        def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
+            if not slices_list:
+                return
+            verts_uv = np.vstack(slices_list)
+            self.shader.use()
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.vbo)
+            gl.glBufferData(
+                gl.GL_ARRAY_BUFFER,
+                verts_uv.nbytes,
+                verts_uv,
+                gl.GL_DYNAMIC_DRAW,
+            )
+            stride = verts_uv.strides[0]
+            gl.glEnableVertexAttribArray(self.pos_attr)
+            gl.glVertexAttribPointer(
+                self.pos_attr,
+                2,
+                gl.GL_FLOAT,
+                gl.GL_FALSE,
+                stride,
+                ctypes.c_void_p(0),
+            )
+            gl.glEnableVertexAttribArray(self.uv_attr)
+            gl.glVertexAttribPointer(
+                self.uv_attr,
+                2,
+                gl.GL_FLOAT,
+                gl.GL_FALSE,
+                stride,
+                ctypes.c_void_p(8),
+            )
+            gl.glActiveTexture(gl.GL_TEXTURE0)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, texture)
+            gl.glUniform1i(self.u_tex_loc, 0)
+            gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(verts_uv))
+            gl.glDisableVertexAttribArray(self.pos_attr)
+            gl.glDisableVertexAttribArray(self.uv_attr)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+            self.shader.stop()
+
+        # Draw walls first, then doors
+        draw_slices(wall_slices, self.wall_tex)
+        draw_slices(door_slices, self.door_tex)

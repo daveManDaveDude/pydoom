@@ -1,6 +1,7 @@
 import pytest
 
 from game.world import World
+from game.config import TILE_DOOR
 
 
 @pytest.mark.parametrize(
@@ -21,4 +22,13 @@ def test_is_wall_empty_and_wall_cells():
     assert not world.is_wall(0, 0)
     assert world.is_wall(1, 0)
     assert world.is_wall(0, 1)
+    assert not world.is_wall(1, 1)
+
+
+def test_is_wall_door_cells():
+    grid = [[0, TILE_DOOR], [TILE_DOOR, 0]]
+    world = World(map_grid=grid)
+    assert world.is_wall(1, 0)
+    assert world.is_wall(0, 1)
+    assert not world.is_wall(0, 0)
     assert not world.is_wall(1, 1)
