@@ -171,8 +171,8 @@ class Game:
                     enemy.y = new_y
         # Collision detection: if an enemy reaches the player, schedule respawn
         for enemy in self.enemies:
-            # Skip enemies already dead/pending respawn
-            if getattr(enemy, "respawn_timer", 0) > 0:
+            # Skip enemies that are dead or awaiting respawn
+            if getattr(enemy, "respawn_timer", 0) > 0 or enemy.health <= 0:
                 continue
             dx_e = enemy.x - self.player.x
             dy_e = enemy.y - self.player.y
