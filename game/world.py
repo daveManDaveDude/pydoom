@@ -288,16 +288,31 @@ class World:
         tx, ty = int(x), int(y)
         tile = self.map[ty][tx]
         if tile == TILE_DOOR:
-            # Closed doors block passage; open doors are passable
             for door in self.doors:
                 if door.x == tx and door.y == ty:
-                    return door.state != "open"
+                    return door.state == "closed"
             return True
         return tile == TILE_WALL
 
     def get_room_id(self, x: float, y: float) -> Optional[int]:
-        """Return the room ID at the given world coordinates, or None if out of bounds."""
+        """
+        Return the room ID at the given world coordinates, or None if out of bounds.
+        For any door not fully closed, return the room ID of an adjacent cell
+        to allow enemies to chase through an open doorway.
+        """
         ix, iy = int(x), int(y)
         if ix < 0 or iy < 0 or ix >= self.width or iy >= self.height:
             return None
-        return self.room_map[iy][ix]
+        room = self.room_map[iy][ix]
+        if room >= 0:
+            return room
+        if self.map[iy][ix] == TILE_DOOR:
+            for door in self.doors:
+                if door.x == ix and door.y == iy and door.state != "closed":
+                    for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+                        nx, ny = ix + dx, iy + dy
+                        if 0 <= nx < self.width and 0 <= ny < self.height:
+                            adj_room = self.room_map[ny][nx]
+                            if adj_room >= 0:
+                                return adj_room
+        return None

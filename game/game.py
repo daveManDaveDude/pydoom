@@ -124,11 +124,8 @@ class Game:
             and self.world.powerup_angle is not None
         ):
             self.world.powerup_angle += SPRITE_ROT_SPEED * dt
-        # Enemy chasing logic: only pursue if in same room as player
-        player_room = self.world.get_room_id(self.player.x, self.player.y)
+        # Enemy chasing logic: only pursue if reachable via open doors or direct line-of-sight
         for enemy in self.enemies:
-            if getattr(enemy, "home_room", None) != player_room:
-                continue
             # Skip enemies that are dead or awaiting respawn
             if getattr(enemy, "respawn_timer", 0) > 0 or enemy.health <= 0:
                 continue
