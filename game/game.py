@@ -129,8 +129,8 @@ class Game:
         for enemy in self.enemies:
             if getattr(enemy, "home_room", None) != player_room:
                 continue
-            # Skip enemies awaiting respawn
-            if getattr(enemy, "respawn_timer", 0) > 0:
+            # Skip enemies that are dead or awaiting respawn
+            if getattr(enemy, "respawn_timer", 0) > 0 or enemy.health <= 0:
                 continue
             # Update sight timer for line-of-sight detection
             if self._is_visible_to_player(enemy.x, enemy.y):
@@ -194,21 +194,16 @@ class Game:
                 continue
             # Check collision with alive enemies
             for enemy in self.enemies:
-                if getattr(enemy, "respawn_timer", 0) > 0:
+                if getattr(enemy, "respawn_timer", 0) > 0 or enemy.health <= 0:
                     continue
                 dx_b = bullet.x - enemy.x
                 dy_b = bullet.y - enemy.y
                 if math.hypot(dx_b, dy_b) < BULLET_HIT_RADIUS:
-                    # Hit detected: deactivate bullet and damage enemy
                     bullet.active = False
-                    # Trigger hit flash feedback
                     self.renderer.hit_flash_until = (
                         pygame.time.get_ticks() + HIT_FLASH_DURATION_MS
                     )
                     enemy.health -= 1
-                    # Start respawn timer if health depleted
-                    if enemy.health <= 0:
-                        enemy.respawn_timer = ENEMY_RESPAWN_DELAY
                     break
         # Remove inactive bullets
         self.bullets = [b for b in self.bullets if b.active]
@@ -223,43 +218,43 @@ class Game:
 
     def _respawn_enemy(self, enemy: Enemy) -> None:
         """
-        Teleport the given enemy to a random free cell away from walls, player, and other enemies.
+        Teleport the given enemy back to its original spawn location or, if unknown,
+        to a random free cell away from walls, player, and other enemies.
         """
         w = self.world
-        player_cell = (int(self.player.x), int(self.player.y))
-        for _ in range(100):
-            rx = random.randrange(w.width)
-            ry = random.randrange(w.height)
-            # Must be walkable
-            if w.is_wall(rx, ry):
-                continue
-            # Not on player
-            if (rx, ry) == player_cell:
-                continue
-            # Not on another enemy
-            conflict = any(
-                other is not enemy and (int(other.x), int(other.y)) == (rx, ry)
-                for other in self.enemies
-            )
-            if conflict:
-                continue
-            # Ensure sufficient distance from player (at least 2 units)
-            cx, cy = rx + 0.5, ry + 0.5
-            if math.hypot(cx - self.player.x, cy - self.player.y) < 2.0:
-                continue
-            # Ensure spawn is not visible to player (blocked by walls)
-            if self._is_visible_to_player(cx, cy):
-                continue
-            # Found valid spawn: reposition and reset health
-            enemy.x = cx
-            enemy.y = cy
-            # Restore full health upon respawn and clear respawn timer
-            if hasattr(enemy, "max_health"):
-                enemy.health = enemy.max_health
-            if hasattr(enemy, "respawn_timer"):
-                enemy.respawn_timer = 0.0
-            return
-        # Fallback: do nothing if no suitable tile found
+        # Respawn at original spawn if available
+        if hasattr(enemy, "spawn_x") and hasattr(enemy, "spawn_y"):
+            enemy.x = enemy.spawn_x
+            enemy.y = enemy.spawn_y
+        else:
+            player_cell = (int(self.player.x), int(self.player.y))
+            for _ in range(100):
+                rx = random.randrange(w.width)
+                ry = random.randrange(w.height)
+                if w.is_wall(rx, ry):
+                    continue
+                if (rx, ry) == player_cell:
+                    continue
+                conflict = any(
+                    other is not enemy
+                    and (int(other.x), int(other.y)) == (rx, ry)
+                    for other in self.enemies
+                )
+                if conflict:
+                    continue
+                cx, cy = rx + 0.5, ry + 0.5
+                if math.hypot(cx - self.player.x, cy - self.player.y) < 2.0:
+                    continue
+                if self._is_visible_to_player(cx, cy):
+                    continue
+                enemy.x = cx
+                enemy.y = cy
+                break
+        # Restore full health and clear respawn timer
+        if hasattr(enemy, "max_health"):
+            enemy.health = enemy.max_health
+        if hasattr(enemy, "respawn_timer"):
+            enemy.respawn_timer = 0.0
 
     def _is_visible_to_player(self, x: float, y: float) -> bool:
         """

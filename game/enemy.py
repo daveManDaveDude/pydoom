@@ -25,6 +25,8 @@ class Enemy:
         # Position in world coordinates
         self.x = float(x)
         self.y = float(y)
+        self.spawn_x = self.x
+        self.spawn_y = self.y
         # Animation frames or single texture for rendering
         self.textures = textures or []
         # Height of the sprite in world units
