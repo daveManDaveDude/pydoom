@@ -68,6 +68,7 @@ class CpuWallRenderer(WallRenderer):
             angle_off = -self.half_fov + i * (self.fov / self.w)
             dir_x = cos_pa * math.cos(angle_off) - sin_pa * math.sin(angle_off)
             dir_y = sin_pa * math.cos(angle_off) + cos_pa * math.sin(angle_off)
+            door_hits: list[tuple] = []
             # DDA initialization
             map_x = int(player.x)
             map_y = int(player.y)
@@ -111,9 +112,24 @@ class CpuWallRenderer(WallRenderer):
                         ),
                         None,
                     )
-                    # Treat a fully open door as empty to hit walls behind it
-                    if door_obj is not None and door_obj.progress >= 1.0:
-                        continue
+                    if door_obj is not None:
+                        if door_obj.progress >= 1.0:
+                            continue
+                        if door_obj.progress > 0.0:
+                            door_hits.append(
+                                (
+                                    door_obj,
+                                    map_x,
+                                    map_y,
+                                    side,
+                                    step_x,
+                                    step_y,
+                                    dir_x,
+                                    dir_y,
+                                    angle_off,
+                                )
+                            )
+                            continue
                     hit = True
                     cur_tile = TILE_DOOR
             # Calculate perpendicular distance (avoid fish-eye)
@@ -148,6 +164,53 @@ class CpuWallRenderer(WallRenderer):
                 ],
                 dtype=np.float32,
             )
+            for (
+                door_obj,
+                mx_d,
+                my_d,
+                side_d,
+                step_x_d,
+                step_y_d,
+                dir_x_d,
+                dir_y_d,
+                angle_off_d,
+            ) in door_hits:
+                if side_d == 0:
+                    dist_d = (mx_d - player.x + (1 - step_x_d) / 2) / dir_x_d
+                else:
+                    dist_d = (my_d - player.y + (1 - step_y_d) / 2) / dir_y_d
+                perp_d = max(dist_d * math.cos(angle_off_d), 1e-3)
+                slice_h_d = int(self.proj_plane_dist / perp_d)
+                mid_d = self.h / 2 + player.pitch
+                y0_d = ((mid_d - slice_h_d / 2) / (self.h - 1) * 2) - 1
+                y1_d = ((mid_d + slice_h_d / 2) / (self.h - 1) * 2) - 1
+                if side_d == 0:
+                    wallX_d = player.y + dist_d * dir_y_d
+                else:
+                    wallX_d = player.x + dist_d * dir_x_d
+                u_d = wallX_d - math.floor(wallX_d)
+                slice_uv_d = np.array(
+                    [
+                        [x0_ndc, y1_d, u_d, 1.0],
+                        [x0_ndc, y0_d, u_d, 0.0],
+                        [x1_ndc, y0_d, u_d, 0.0],
+                        [x1_ndc, y0_d, u_d, 0.0],
+                        [x1_ndc, y1_d, u_d, 1.0],
+                        [x0_ndc, y1_d, u_d, 1.0],
+                    ],
+                    dtype=np.float32,
+                )
+                if door_obj.slide_axis == "x":
+                    off_d = (
+                        door_obj.progress * (y1_d - y0_d) * door_obj.slide_dir
+                    )
+                    slice_uv_d[:, 0] += off_d
+                else:
+                    off_d = (
+                        door_obj.progress * (y1_d - y0_d) * door_obj.slide_dir
+                    )
+                    slice_uv_d[:, 1] += off_d
+                door_slices.append(slice_uv_d)
             if cur_tile == TILE_WALL:
                 wall_slices.append(slice_uv)
             elif cur_tile == TILE_DOOR:
