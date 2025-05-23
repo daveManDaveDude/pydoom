@@ -124,8 +124,8 @@ def load_texture(
 
 def create_texture_from_surface(
     surf: pygame.Surface,
-    wrap_s: int = gl.GL_CLAMP,
-    wrap_t: int = gl.GL_CLAMP,
+    wrap_s: int = gl.GL_CLAMP_TO_EDGE,
+    wrap_t: int = gl.GL_CLAMP_TO_EDGE,
     min_filter: int = gl.GL_LINEAR,
     mag_filter: int = gl.GL_LINEAR,
 ) -> int:

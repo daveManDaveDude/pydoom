@@ -290,7 +290,7 @@ class World:
         if tile == TILE_DOOR:
             for door in self.doors:
                 if door.x == tx and door.y == ty:
-                    return door.state == "closed"
+                    return door.state != "open"
             return True
         return tile == TILE_WALL
 
@@ -308,7 +308,8 @@ class World:
             return room
         if self.map[iy][ix] == TILE_DOOR:
             for door in self.doors:
-                if door.x == ix and door.y == iy and door.state != "closed":
+                # Only allow passage through fully open doors
+                if door.x == ix and door.y == iy and door.state == "open":
                     for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
                         nx, ny = ix + dx, iy + dy
                         if 0 <= nx < self.width and 0 <= ny < self.height:

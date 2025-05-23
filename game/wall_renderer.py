@@ -8,12 +8,14 @@ import math
 import numpy as np
 import OpenGL.GL as gl  # noqa: N811
 from .config import TILE_WALL, TILE_DOOR
+from .gl_resources import GLResourceManager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .world import World
     from .player import Player
     from .gl_utils import ShaderProgram
+    from .gl_resources import GLResourceManager
 
 
 class WallRenderer:
@@ -40,7 +42,9 @@ class CpuWallRenderer(WallRenderer):
         pos_attr: int,
         uv_attr: int,
         u_tex_loc: int,
+        res_mgr: GLResourceManager | None = None,
     ) -> None:
+        self._res = res_mgr
         self.w = width
         self.h = height
         self.fov = fov
@@ -52,8 +56,13 @@ class CpuWallRenderer(WallRenderer):
         self.pos_attr = pos_attr
         self.uv_attr = uv_attr
         self.u_tex_loc = u_tex_loc
-        # VBO for wall vertices + UVs
-        self.vbo = gl.glGenBuffers(1)
+        if hasattr(self, "_res") and self._res:
+            self.vbo = self._res.gen(
+                lambda: gl.glGenBuffers(1),
+                lambda obj: gl.glDeleteBuffers(1, [obj]),
+            )
+        else:
+            self.vbo = gl.glGenBuffers(1)
         # Depth buffer for occlusion per column
         self.depth_buffer = np.zeros(self.w, dtype=np.float32)
 
@@ -99,6 +108,15 @@ class CpuWallRenderer(WallRenderer):
                     side_y += delta_y
                     map_y += step_y
                     side = 1
+                if (
+                    map_x < 0
+                    or map_y < 0
+                    or map_x >= world.width
+                    or map_y >= world.height
+                ):
+                    hit = True
+                    cur_tile = TILE_WALL
+                    break
                 cell = world.map[map_y][map_x]
                 if cell == TILE_WALL:
                     hit = True

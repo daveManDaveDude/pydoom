@@ -105,9 +105,10 @@ pydoom/
 │   ├── renderer.py         # OpenGL‑based rendering
 │   ├── wall_renderer.py    # CPU-based wall casting implementation
 │   ├── gl_utils.py         # Shader & texture helpers
-│   ├── gl_resources/       # GLSL shader sources
+│   ├── gl_resources.py     # Resource manager for GL objects
+│   ├── shaders/            # GLSL shader sources
 │   ├── textures/           # PNG assets (walls, floor, sprites…)
-│   └── worlds/
+│   └── worlds/             # Sample map layouts
 │       └── default.json    # Sample map layout
 ├── main.py                 # Entry point
 ├── .gitignore

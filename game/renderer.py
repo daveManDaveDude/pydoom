@@ -179,9 +179,11 @@ void main() {
         self.floor_tex = load_texture(
             os.path.join(textures_dir, FLOOR_TEXTURE_FILE)
         )
+        self._res._objs[_delete_texture].append(self.floor_tex)
         self.ceil_tex = load_texture(
             os.path.join(textures_dir, CEILING_TEXTURE_FILE)
         )
+        self._res._objs[_delete_texture].append(self.ceil_tex)
         # Textured wall shader
         wall_vs = os.path.join(shader_dir, "wall_textured.vert")
         wall_fs = os.path.join(shader_dir, "wall_textured.frag")
@@ -197,9 +199,11 @@ void main() {
         self.wall_tex = load_texture(
             os.path.join(textures_dir, WALL_TEXTURE_FILE)
         )
+        self._res._objs[_delete_texture].append(self.wall_tex)
         self.door_tex = load_texture(
             os.path.join(textures_dir, DOOR_TEXTURE_FILE)
         )
+        self._res._objs[_delete_texture].append(self.door_tex)
         self.wall_renderer = CpuWallRenderer(
             self.w,
             self.h,
@@ -211,13 +215,15 @@ void main() {
             self.wall_pos2Attr,
             self.wall_uvAttr,
             self.uWallTexLoc,
+            self._res,
         )
         # Load sprite texture for demo sprite rendering
         sprite_path = os.path.join(textures_dir, SPRITE_TEXTURE_FILE)
         spr_surf = pygame.image.load(sprite_path).convert_alpha()
         self.sprite_tex = load_texture(
-            sprite_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP
+            sprite_path, wrap_s=gl.GL_CLAMP_TO_EDGE, wrap_t=gl.GL_CLAMP_TO_EDGE
         )
+        self._res._objs[_delete_texture].append(self.sprite_tex)
         self.sprite_width, self.sprite_height = spr_surf.get_size()
         self.sprite_vbo = self._res.gen(
             lambda: gl.glGenBuffers(1), _delete_buffer
@@ -232,8 +238,11 @@ void main() {
                         sp_path = os.path.join(textures_dir, tex_name)
                         sp_surf = pygame.image.load(sp_path).convert_alpha()
                         tex_id = load_texture(
-                            sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP
+                            sp_path,
+                            wrap_s=gl.GL_CLAMP_TO_EDGE,
+                            wrap_t=gl.GL_CLAMP_TO_EDGE,
                         )
+                        self._res._objs[_delete_texture].append(tex_id)
                         w, h = sp_surf.get_size()
                         self.sprite_texs[tex_name] = (tex_id, w, h)
         # Load enemy textures for billboard rendering
@@ -245,8 +254,11 @@ void main() {
                         # Load and register texture
                         sp_surf = pygame.image.load(sp_path).convert_alpha()
                         tex_id = load_texture(
-                            sp_path, wrap_s=gl.GL_CLAMP, wrap_t=gl.GL_CLAMP
+                            sp_path,
+                            wrap_s=gl.GL_CLAMP_TO_EDGE,
+                            wrap_t=gl.GL_CLAMP_TO_EDGE,
                         )
+                        self._res._objs[_delete_texture].append(tex_id)
                         w, h = sp_surf.get_size()
                         self.sprite_texs[tex_name] = (tex_id, w, h)
         # Prepare UI overlay text (Press X to quit)
@@ -255,6 +267,8 @@ void main() {
         self.ui_text_width, self.ui_text_height = ui_surf.get_size()
         # Create UI texture
         self.ui_tex = create_texture_from_surface(ui_surf)
+        # Track UI texture for cleanup
+        self._res._objs[_delete_texture].append(self.ui_tex)
         # VBO for UI quad
         self.ui_vbo = self._res.gen(lambda: gl.glGenBuffers(1), _delete_buffer)
 

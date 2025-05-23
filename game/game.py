@@ -180,16 +180,14 @@ class Game:
                 # Kill enemy and start respawn timer
                 enemy.health = 0
                 enemy.respawn_timer = ENEMY_RESPAWN_DELAY
-        # Update bullets: move, check lifespan and wall collisions
+        # Update bullets: move, check lifespan, enemy hits first, then wall collisions
         for bullet in self.bullets:
             bullet.update(dt)
-            # Deactivate if out of lifespan or collided with a wall
-            if not bullet.active or self.world.is_wall(
-                int(bullet.x), int(bullet.y)
-            ):
-                bullet.active = False
+
+            if not bullet.active:
                 continue
-            # Check collision with alive enemies
+
+            hit_enemy = False
             for enemy in self.enemies:
                 if getattr(enemy, "respawn_timer", 0) > 0 or enemy.health <= 0:
                     continue
@@ -197,11 +195,18 @@ class Game:
                 dy_b = bullet.y - enemy.y
                 if math.hypot(dx_b, dy_b) < BULLET_HIT_RADIUS:
                     bullet.active = False
+                    hit_enemy = True
                     self.renderer.hit_flash_until = (
                         pygame.time.get_ticks() + HIT_FLASH_DURATION_MS
                     )
                     enemy.health -= 1
                     break
+            if hit_enemy:
+                continue
+            # Deactivate if collided with a wall
+            if self.world.is_wall(int(bullet.x), int(bullet.y)):
+                bullet.active = False
+                continue
         # Remove inactive bullets
         self.bullets = [b for b in self.bullets if b.active]
         # Process enemy respawn timers
