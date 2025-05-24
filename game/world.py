@@ -212,35 +212,15 @@ class World:
                 if tile == TILE_DOOR:
                     self.doors.append(Door(x, y))
 
-        # Determine sliding orientation for each door based on surrounding walls
+        # Determine sliding orientation for each door 
         for door in self.doors:
             x, y = door.x, door.y
-            # check vertical neighbors (walls above/below) => slide along x
-            if (
-                y - 1 >= 0
-                and y + 1 < self.height
-                and self.map[y - 1][x] == TILE_WALL
-                and self.map[y + 1][x] == TILE_WALL
-            ):
-                door.slide_axis = "x"
-                door.slide_dir = (
-                    1
-                    if x + 1 < self.width and self.map[y][x + 1] == TILE_EMPTY
-                    else -1
-                )
-            # check horizontal neighbors (walls left/right) => slide along y
-            elif (
-                x - 1 >= 0
-                and x + 1 < self.width
-                and self.map[y][x - 1] == TILE_WALL
-                and self.map[y][x + 1] == TILE_WALL
-            ):
-                door.slide_axis = "y"
-                door.slide_dir = (
-                    1
-                    if y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY
-                    else -1
-                )
+            door.slide_axis = "y"
+            door.slide_dir = (
+                1
+                if y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY
+                else -1
+            )
 
         self.room_map: List[List[int]] = [
             [-1] * self.width for _ in range(self.height)
@@ -286,6 +266,14 @@ class World:
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             return True
         tx, ty = int(x), int(y)
+        for door in self.doors:
+            if 0.0 < door.progress < 1.0:
+                if door.slide_axis == "x":
+                    adj_x, adj_y = door.x + door.slide_dir, door.y
+                else:
+                    adj_x, adj_y = door.x, door.y + door.slide_dir
+                if tx == adj_x and ty == adj_y:
+                    return True
         tile = self.map[ty][tx]
         if tile == TILE_DOOR:
             for door in self.doors:
