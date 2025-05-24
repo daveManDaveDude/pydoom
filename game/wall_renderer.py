@@ -70,6 +70,8 @@ class CpuWallRenderer(WallRenderer):
         # Prepare separate vertex lists for wall and door slices
         wall_slices: list[np.ndarray] = []
         door_slices: list[np.ndarray] = []
+        # Collect door slice segments for slide animation pivot adjustment
+        door_slice_infos = {}
         cos_pa = math.cos(player.angle)
         sin_pa = math.sin(player.angle)
         for i in range(self.w):
@@ -182,6 +184,7 @@ class CpuWallRenderer(WallRenderer):
                 ],
                 dtype=np.float32,
             )
+            # Partial open doors: record segments for slide animation
             for (
                 door_obj,
                 mx_d,
@@ -218,17 +221,8 @@ class CpuWallRenderer(WallRenderer):
                     ],
                     dtype=np.float32,
                 )
-                if door_obj.slide_axis == "x":
-                    off_d = (
-                        door_obj.progress * (y1_d - y0_d) * door_obj.slide_dir
-                    )
-                    slice_uv_d[:, 0] += off_d
-                else:
-                    off_d = (
-                        door_obj.progress * (y1_d - y0_d) * door_obj.slide_dir
-                    )
-                    slice_uv_d[:, 1] += off_d
-                door_slices.append(slice_uv_d)
+                door_slice_infos.setdefault(door_obj, []).append(slice_uv_d)
+
             if cur_tile == TILE_WALL:
                 wall_slices.append(slice_uv)
             elif cur_tile == TILE_DOOR:
@@ -237,21 +231,33 @@ class CpuWallRenderer(WallRenderer):
                     None,
                 )
                 if door_obj is not None and door_obj.progress > 0.0:
-                    if door_obj.slide_axis == "x":
-                        off = (
-                            door_obj.progress
-                            * (y1_ndc - y0_ndc)
-                            * door_obj.slide_dir
-                        )
-                        slice_uv[:, 0] += off
-                    else:
-                        off = (
-                            door_obj.progress
-                            * (y1_ndc - y0_ndc)
-                            * door_obj.slide_dir
-                        )
-                        slice_uv[:, 1] += off
-                door_slices.append(slice_uv)
+                    door_slice_infos.setdefault(door_obj, []).append(slice_uv)
+                else:
+                    door_slices.append(slice_uv)
+
+        # Apply slide animation pivot adjustments for door slices
+        for door_obj, segments in door_slice_infos.items():
+            if not segments:
+                continue
+            if door_obj.slide_axis == "x":
+                # Horizontal slide: pivot at block side of door
+                xs0 = [seg[:, 0].min() for seg in segments]
+                xs1 = [seg[:, 0].max() for seg in segments]
+                pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
+                for seg in segments:
+                    seg[:, 0] = pivot + (seg[:, 0] - pivot) * (
+                        1.0 - door_obj.progress
+                    )
+            else:
+                # Vertical slide: pivot at block side of door
+                ys0 = [seg[:, 1].min() for seg in segments]
+                ys1 = [seg[:, 1].max() for seg in segments]
+                pivot = max(ys1) if door_obj.slide_dir == 1 else min(ys0)
+                for seg in segments:
+                    seg[:, 1] = pivot + (seg[:, 1] - pivot) * (
+                        1.0 - door_obj.progress
+                    )
+            door_slices.extend(segments)
 
         def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
             if not slices_list:

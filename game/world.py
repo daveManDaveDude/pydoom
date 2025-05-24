@@ -212,15 +212,22 @@ class World:
                 if tile == TILE_DOOR:
                     self.doors.append(Door(x, y))
 
-        # Determine sliding orientation for each door 
+        # Determine sliding orientation for each door
         for door in self.doors:
             x, y = door.x, door.y
-            door.slide_axis = "y"
-            door.slide_dir = (
-                1
-                if y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY
-                else -1
-            )
+            # Determine slide axis and direction based on adjacent empty cell
+            if x + 1 < self.width and self.map[y][x + 1] == TILE_EMPTY:
+                door.slide_axis = "x"
+                door.slide_dir = 1
+            elif x - 1 >= 0 and self.map[y][x - 1] == TILE_EMPTY:
+                door.slide_axis = "x"
+                door.slide_dir = -1
+            elif y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY:
+                door.slide_axis = "y"
+                door.slide_dir = 1
+            else:
+                door.slide_axis = "y"
+                door.slide_dir = -1
 
         self.room_map: List[List[int]] = [
             [-1] * self.width for _ in range(self.height)
