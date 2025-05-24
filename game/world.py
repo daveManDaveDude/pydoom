@@ -222,12 +222,6 @@ class World:
             elif x - 1 >= 0 and self.map[y][x - 1] == TILE_EMPTY:
                 door.slide_axis = "x"
                 door.slide_dir = -1
-            elif y + 1 < self.height and self.map[y + 1][x] == TILE_EMPTY:
-                door.slide_axis = "y"
-                door.slide_dir = 1
-            else:
-                door.slide_axis = "y"
-                door.slide_dir = -1
 
         self.room_map: List[List[int]] = [
             [-1] * self.width for _ in range(self.height)
