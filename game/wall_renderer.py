@@ -257,6 +257,7 @@ class CpuWallRenderer(WallRenderer):
                         if seg[:, 0].min() >= th:
                             continue
                         seg[:, 0] = np.minimum(seg[:, 0], th)
+                        seg[:, 2] = seg[:, 2] + door_obj.progress
                         door_slices.append(seg)
                 else:
                     raw_th = pivot - visible
@@ -265,6 +266,7 @@ class CpuWallRenderer(WallRenderer):
                         if seg[:, 0].max() <= th:
                             continue
                         seg[:, 0] = np.maximum(seg[:, 0], th)
+                        seg[:, 2] = seg[:, 2] - door_obj.progress
                         door_slices.append(seg)
             else:
                 # Vertical slide: pivot at block side of door
@@ -279,19 +281,25 @@ class CpuWallRenderer(WallRenderer):
                 visible_y = total_y * (1.0 - door_obj.progress)
                 if door_obj.slide_dir == 1:
                     raw_th = pivot_y - visible_y
-                    th = min((y1 for y1 in ys1 if y1 >= raw_th), default=pivot_y)
+                    th = min(
+                        (y1 for y1 in ys1 if y1 >= raw_th), default=pivot_y
+                    )
                     for seg in segments:
                         if seg[:, 1].max() <= th:
                             continue
                         seg[:, 1] = np.maximum(seg[:, 1], th)
+                        seg[:, 3] = seg[:, 3] - door_obj.progress
                         door_slices.append(seg)
                 else:
                     raw_th = pivot_y + visible_y
-                    th = max((y0 for y0 in ys0 if y0 <= raw_th), default=pivot_y)
+                    th = max(
+                        (y0 for y0 in ys0 if y0 <= raw_th), default=pivot_y
+                    )
                     for seg in segments:
                         if seg[:, 1].min() >= th:
                             continue
                         seg[:, 1] = np.minimum(seg[:, 1], th)
+                        seg[:, 3] = seg[:, 3] + door_obj.progress
                         door_slices.append(seg)
 
         def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
