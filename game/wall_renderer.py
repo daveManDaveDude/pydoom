@@ -235,7 +235,7 @@ class CpuWallRenderer(WallRenderer):
                 else:
                     door_slices.append(slice_uv)
 
-        # Apply slide animation pivot adjustments for door slices
+        # Apply slide animation by clipping door slices to show visible portion without distortion
         for door_obj, segments in door_slice_infos.items():
             if not segments:
                 continue
@@ -244,20 +244,63 @@ class CpuWallRenderer(WallRenderer):
                 xs0 = [seg[:, 0].min() for seg in segments]
                 xs1 = [seg[:, 0].max() for seg in segments]
                 pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
-                for seg in segments:
-                    seg[:, 0] = pivot + (seg[:, 0] - pivot) * (
-                        1.0 - door_obj.progress
-                    )
+                total = (
+                    (max(xs1) - pivot)
+                    if door_obj.slide_dir == 1
+                    else (pivot - min(xs0))
+                )
+                visible = total * (1.0 - door_obj.progress)
+                if door_obj.slide_dir == 1:
+                    raw_th = pivot + visible
+                    th = max((x0 for x0 in xs0 if x0 <= raw_th), default=pivot)
+                    for seg in segments:
+                        if seg[:, 0].min() >= th:
+                            continue
+                        seg[:, 0] = np.minimum(seg[:, 0], th)
+                        seg[:, 2] = seg[:, 2] + door_obj.progress
+                        door_slices.append(seg)
+                else:
+                    raw_th = pivot - visible
+                    th = min((x1 for x1 in xs1 if x1 >= raw_th), default=pivot)
+                    for seg in segments:
+                        if seg[:, 0].max() <= th:
+                            continue
+                        seg[:, 0] = np.maximum(seg[:, 0], th)
+                        seg[:, 2] = seg[:, 2] - door_obj.progress
+                        door_slices.append(seg)
             else:
                 # Vertical slide: pivot at block side of door
                 ys0 = [seg[:, 1].min() for seg in segments]
                 ys1 = [seg[:, 1].max() for seg in segments]
-                pivot = max(ys1) if door_obj.slide_dir == 1 else min(ys0)
-                for seg in segments:
-                    seg[:, 1] = pivot + (seg[:, 1] - pivot) * (
-                        1.0 - door_obj.progress
+                pivot_y = max(ys1) if door_obj.slide_dir == 1 else min(ys0)
+                total_y = (
+                    (pivot_y - min(ys0))
+                    if door_obj.slide_dir == 1
+                    else (max(ys1) - pivot_y)
+                )
+                visible_y = total_y * (1.0 - door_obj.progress)
+                if door_obj.slide_dir == 1:
+                    raw_th = pivot_y - visible_y
+                    th = min(
+                        (y1 for y1 in ys1 if y1 >= raw_th), default=pivot_y
                     )
-            door_slices.extend(segments)
+                    for seg in segments:
+                        if seg[:, 1].max() <= th:
+                            continue
+                        seg[:, 1] = np.maximum(seg[:, 1], th)
+                        seg[:, 3] = seg[:, 3] - door_obj.progress
+                        door_slices.append(seg)
+                else:
+                    raw_th = pivot_y + visible_y
+                    th = max(
+                        (y0 for y0 in ys0 if y0 <= raw_th), default=pivot_y
+                    )
+                    for seg in segments:
+                        if seg[:, 1].min() >= th:
+                            continue
+                        seg[:, 1] = np.minimum(seg[:, 1], th)
+                        seg[:, 3] = seg[:, 3] + door_obj.progress
+                        door_slices.append(seg)
 
         def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
             if not slices_list:
