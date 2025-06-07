@@ -255,19 +255,20 @@ class CpuWallRenderer(WallRenderer):
                     min_x, max_x = min(pivot, far_x), max(pivot, far_x)
                     seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
             else:
-                ys0 = [seg[:, 1].min() for seg in segments]
-                ys1 = [seg[:, 1].max() for seg in segments]
-                pivot = max(ys1) if door_obj.slide_dir == 1 else min(ys0)
-                far_y = min(ys0) if door_obj.slide_dir == 1 else max(ys1)
-                moving_y = pivot + (far_y - pivot) * door_obj.progress
+                # Vertical slide: translate door slices into the opening
                 xs0 = [seg[:, 0].min() for seg in segments]
                 xs1 = [seg[:, 0].max() for seg in segments]
-                debug_edges.append(("y", moving_y, min(xs0), max(xs1)))
-                slide_y = (far_y - pivot) * door_obj.progress
+                pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
+                far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
+                moving_x = pivot + (far_x - pivot) * door_obj.progress
+                ys0 = [seg[:, 1].min() for seg in segments]
+                ys1 = [seg[:, 1].max() for seg in segments]
+                debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
+                slide_x = (far_x - pivot) * door_obj.progress
                 for seg in segments:
-                    seg[:, 1] += slide_y
-                    min_y, max_y = min(pivot, far_y), max(pivot, far_y)
-                    seg[:, 1] = np.clip(seg[:, 1], min_y, max_y)
+                    seg[:, 0] += slide_x
+                    min_x, max_x = min(pivot, far_x), max(pivot, far_x)
+                    seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
             door_slices.extend(segments)
 
         def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
