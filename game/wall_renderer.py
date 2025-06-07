@@ -236,6 +236,7 @@ class CpuWallRenderer(WallRenderer):
                     door_slices.append(slice_uv)
 
         # Apply slide animation pivot adjustments for door slices
+        debug_edges = []
         for door_obj, segments in door_slice_infos.items():
             if not segments:
                 continue
@@ -244,6 +245,11 @@ class CpuWallRenderer(WallRenderer):
                 xs0 = [seg[:, 0].min() for seg in segments]
                 xs1 = [seg[:, 0].max() for seg in segments]
                 pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
+                far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
+                moving_x = pivot + (far_x - pivot) * (1.0 - door_obj.progress)
+                ys0 = [seg[:, 1].min() for seg in segments]
+                ys1 = [seg[:, 1].max() for seg in segments]
+                debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
                 for seg in segments:
                     seg[:, 0] = pivot + (seg[:, 0] - pivot) * (
                         1.0 - door_obj.progress
@@ -253,6 +259,11 @@ class CpuWallRenderer(WallRenderer):
                 ys0 = [seg[:, 1].min() for seg in segments]
                 ys1 = [seg[:, 1].max() for seg in segments]
                 pivot = max(ys1) if door_obj.slide_dir == 1 else min(ys0)
+                far_y = min(ys0) if door_obj.slide_dir == 1 else max(ys1)
+                moving_y = pivot + (far_y - pivot) * (1.0 - door_obj.progress)
+                xs0 = [seg[:, 0].min() for seg in segments]
+                xs1 = [seg[:, 0].max() for seg in segments]
+                debug_edges.append(("y", moving_y, min(xs0), max(xs1)))
                 for seg in segments:
                     seg[:, 1] = pivot + (seg[:, 1] - pivot) * (
                         1.0 - door_obj.progress
@@ -303,3 +314,20 @@ class CpuWallRenderer(WallRenderer):
         # Draw walls first, then doors
         draw_slices(wall_slices, self.wall_tex)
         draw_slices(door_slices, self.door_tex)
+
+        # Debug: draw shrinking door moving edges in red
+        gl.glDisable(gl.GL_TEXTURE_2D)
+        gl.glColor3f(1.0, 0.0, 0.0)
+        gl.glLineWidth(2.0)
+        gl.glBegin(gl.GL_LINES)
+        for axis, pivot, mn, mx in debug_edges:
+            if axis == "x":
+                gl.glVertex2f(pivot, mn)
+                gl.glVertex2f(pivot, mx)
+            else:
+                gl.glVertex2f(mn, pivot)
+                gl.glVertex2f(mx, pivot)
+        gl.glEnd()
+        gl.glEnable(gl.GL_TEXTURE_2D)
+        # Reset line width
+        gl.glLineWidth(1.0)
