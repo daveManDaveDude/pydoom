@@ -95,6 +95,10 @@ class Game:
             bx = self.player.x + math.cos(self.player.angle) * offset
             by = self.player.y + math.sin(self.player.angle) * offset
             self.bullets.append(Bullet(bx, by, self.player.angle))
+        # Toggle door debug overlay with Shift+D
+        if self.input.toggle_debug_doors_pressed():
+            wr = self.renderer.wall_renderer
+            wr.show_debug_doors = not getattr(wr, 'show_debug_doors', False)
 
     def update(self, dt: float) -> None:
         """Update game state: handle input-driven movement and actions."""

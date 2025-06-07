@@ -47,6 +47,8 @@ class CpuWallRenderer(WallRenderer):
         self._res = res_mgr
         self.w = width
         self.h = height
+        # Door debug overlay flag (toggled via Shift+D)
+        self.show_debug_doors = False
         self.fov = fov
         self.half_fov = fov / 2.0
         self.proj_plane_dist = proj_plane_dist
@@ -235,40 +237,29 @@ class CpuWallRenderer(WallRenderer):
                 else:
                     door_slices.append(slice_uv)
 
-        # Apply slide animation pivot adjustments for door slices
+        # Apply sliding-door translation & clamping: translate door slices along screen X into the jamb
         debug_edges = []
         for door_obj, segments in door_slice_infos.items():
             if not segments:
                 continue
-            if door_obj.slide_axis == "x":
-                xs0 = [seg[:, 0].min() for seg in segments]
-                xs1 = [seg[:, 0].max() for seg in segments]
-                pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
-                far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
-                moving_x = pivot + (far_x - pivot) * door_obj.progress
-                ys0 = [seg[:, 1].min() for seg in segments]
-                ys1 = [seg[:, 1].max() for seg in segments]
-                debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
-                slide_x = (far_x - pivot) * door_obj.progress
-                for seg in segments:
-                    seg[:, 0] += slide_x
-                    min_x, max_x = min(pivot, far_x), max(pivot, far_x)
-                    seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
-            else:
-                # Vertical slide: translate door slices into the opening
-                xs0 = [seg[:, 0].min() for seg in segments]
-                xs1 = [seg[:, 0].max() for seg in segments]
-                pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
-                far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
-                moving_x = pivot + (far_x - pivot) * door_obj.progress
-                ys0 = [seg[:, 1].min() for seg in segments]
-                ys1 = [seg[:, 1].max() for seg in segments]
-                debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
-                slide_x = (far_x - pivot) * door_obj.progress
-                for seg in segments:
-                    seg[:, 0] += slide_x
-                    min_x, max_x = min(pivot, far_x), max(pivot, far_x)
-                    seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
+
+            # Compute jamb face (pivot) and far edge in screen X
+            xs0 = [seg[:, 0].min() for seg in segments]
+            xs1 = [seg[:, 0].max() for seg in segments]
+            pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
+            far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
+            moving_x = pivot + (far_x - pivot) * door_obj.progress
+            ys0 = [seg[:, 1].min() for seg in segments]
+            ys1 = [seg[:, 1].max() for seg in segments]
+            debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
+
+            # Translate door segments into the jamb, clamping past the hinge
+            slide_x = (far_x - pivot) * door_obj.progress
+            for seg in segments:
+                seg[:, 0] += slide_x
+                min_x, max_x = min(pivot, far_x), max(pivot, far_x)
+                seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
+
             door_slices.extend(segments)
 
         def draw_slices(slices_list: list[np.ndarray], texture: int) -> None:
@@ -316,19 +307,20 @@ class CpuWallRenderer(WallRenderer):
         draw_slices(wall_slices, self.wall_tex)
         draw_slices(door_slices, self.door_tex)
 
-        # Debug: draw shrinking door moving edges in red
-        gl.glDisable(gl.GL_TEXTURE_2D)
-        gl.glColor3f(1.0, 0.0, 0.0)
-        gl.glLineWidth(2.0)
-        gl.glBegin(gl.GL_LINES)
-        for axis, pivot, mn, mx in debug_edges:
-            if axis == "x":
-                gl.glVertex2f(pivot, mn)
-                gl.glVertex2f(pivot, mx)
-            else:
-                gl.glVertex2f(mn, pivot)
-                gl.glVertex2f(mx, pivot)
-        gl.glEnd()
-        gl.glEnable(gl.GL_TEXTURE_2D)
-        # Reset line width
-        gl.glLineWidth(1.0)
+        # Optionally draw the door slide debug edges (red lines at moving door faces)
+        if self.show_debug_doors:
+            gl.glDisable(gl.GL_TEXTURE_2D)
+            gl.glColor3f(1.0, 0.0, 0.0)
+            gl.glLineWidth(2.0)
+            gl.glBegin(gl.GL_LINES)
+            for axis, pivot, mn, mx in debug_edges:
+                if axis == "x":
+                    gl.glVertex2f(pivot, mn)
+                    gl.glVertex2f(pivot, mx)
+                else:
+                    gl.glVertex2f(mn, pivot)
+                    gl.glVertex2f(mx, pivot)
+            gl.glEnd()
+            gl.glEnable(gl.GL_TEXTURE_2D)
+            # Reset line width
+            gl.glLineWidth(1.0)
