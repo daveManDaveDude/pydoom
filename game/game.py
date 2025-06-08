@@ -98,7 +98,7 @@ class Game:
         # Toggle door debug overlay with Shift+D
         if self.input.toggle_debug_doors_pressed():
             wr = self.renderer.wall_renderer
-            wr.show_debug_doors = not getattr(wr, 'show_debug_doors', False)
+            wr.show_debug_doors = not getattr(wr, "show_debug_doors", False)
 
     def update(self, dt: float) -> None:
         """Update game state: handle input-driven movement and actions."""

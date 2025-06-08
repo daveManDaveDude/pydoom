@@ -38,7 +38,9 @@ class InputHandler:
                     self._quit = True
                 elif event.key == pygame.K_SPACE:
                     self._fire = True
-                elif event.key == pygame.K_d and (event.mod & pygame.KMOD_SHIFT):
+                elif event.key == pygame.K_d and (
+                    event.mod & pygame.KMOD_SHIFT
+                ):
                     # Toggle door debug lines
                     self._toggle_door_debug = True
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
