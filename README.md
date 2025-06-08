@@ -28,7 +28,7 @@ The entire project including this readme have been created by ai using chat GPT 
 Install dependencies with:
 
 ```bash
-pip install pygame PyOpenGL PyOpenGL_accelerate
+pip install pygame PyOpenGL PyOpenGL_accelerate numpy
 ```
 
 To install development tools:
