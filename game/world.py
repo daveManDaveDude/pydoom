@@ -298,8 +298,8 @@ class World:
     def get_room_id(self, x: float, y: float) -> Optional[int]:
         """
         Return the room ID at the given world coordinates, or None if out of bounds.
-        For any door not fully closed, return the room ID of an adjacent cell
-        to allow enemies to chase through an open doorway.
+        For a door cell, return the room ID of an adjacent cell only when the
+        door's state is "open" to allow enemies to chase through an open doorway.
         """
         ix, iy = int(x), int(y)
         if ix < 0 or iy < 0 or ix >= self.width or iy >= self.height:
