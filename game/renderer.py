@@ -757,6 +757,7 @@ void main() {
         gl.glPopMatrix()
         gl.glMatrixMode(gl.GL_PROJECTION)
         gl.glPopMatrix()
+        gl.glMatrixMode(gl.GL_MODELVIEW)
         # Swap buffers
         pygame.display.flip()
 
