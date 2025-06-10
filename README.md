@@ -2,7 +2,7 @@
 
 A Python‑based “Doom‑like” prototype built with Pygame and PyOpenGL. Explore a simple 3D maze rendered with GPU shaders, textured walls, floor, ceiling and animated sprites.
 
-The entire project including this readme have been created by ai using chat GPT and cldex cli. I have so far spent $30 in API costs and so am pausing for now. 
+The entire project including this readme have been created by ai using chat GPT and codex cli. I have so far spent $30 in API costs and so am pausing for now.
 
 ---
 
