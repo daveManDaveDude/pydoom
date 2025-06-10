@@ -186,3 +186,16 @@ def test_world_door_animation_progress_and_closing():
     w.update_doors(p, dt=DOOR_ANIM_DURATION)
     assert door.state == "closed"
     assert door.progress == 0.0
+
+
+def test_get_room_id_for_open_and_closed_door():
+    grid = [[0, 2, 0]]
+    w = World(map_grid=grid)
+    door = w.doors[0]
+    # Door closed should not return a room ID for its cell
+    assert w.get_room_id(1.5, 0.5) is None
+
+    door.state = "open"
+    door.progress = 1.0
+    expected = w.room_map[0][2]
+    assert w.get_room_id(1.5, 0.5) == expected
