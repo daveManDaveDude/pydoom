@@ -66,10 +66,16 @@ class Door:
                 if self.timer >= DOOR_CLOSE_DELAY:
                     self.state = "closing"
         elif self.state == "closing":
-            self.progress = max(0.0, self.progress - dt / DOOR_ANIM_DURATION)
-            if self.progress <= 0.0:
-                self.state = "closed"
-                self.timer = 0.0
+            if dist2 <= DOOR_OPEN_DISTANCE * DOOR_OPEN_DISTANCE:
+                # Reopen if player comes back while door is closing
+                self.state = "opening"
+            else:
+                self.progress = max(
+                    0.0, self.progress - dt / DOOR_ANIM_DURATION
+                )
+                if self.progress <= 0.0:
+                    self.state = "closed"
+                    self.timer = 0.0
 
 
 class World:
