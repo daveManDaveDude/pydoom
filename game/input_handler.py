@@ -18,6 +18,8 @@ class InputHandler:
         self._fire = False
         # Toggle door debug overlay (Shift+D)
         self._toggle_door_debug = False
+        # Toggle pause state (P key)
+        self._pause = False
         self._mouse_rel: Tuple[int, int] = (0, 0)
         # Key state and mouse movement are initialized in process_events()
         self._keys: Sequence[bool] = ()
@@ -30,6 +32,7 @@ class InputHandler:
         self._quit = False
         self._fire = False
         self._toggle_door_debug = False
+        self._pause = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self._quit = True
@@ -43,6 +46,9 @@ class InputHandler:
                 ):
                     # Toggle door debug lines
                     self._toggle_door_debug = True
+                elif event.key == pygame.K_p:
+                    # Toggle pause
+                    self._pause = True
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 self._fire = True
         # Update continuous states
@@ -56,6 +62,10 @@ class InputHandler:
     def toggle_debug_doors_pressed(self) -> bool:
         """Return True if Shift+D was pressed this frame to toggle door debug overlay."""
         return self._toggle_door_debug
+
+    def pause_pressed(self) -> bool:
+        """Return True if P key was pressed this frame to toggle pause state."""
+        return self._pause
 
     def fire_pressed(self) -> bool:
         """Return True if fire action (space or left click) occurred this frame."""

@@ -81,8 +81,9 @@ class Game:
         )
         # Input abstraction
         self.input = InputHandler()
-        # Control flag
+        # Control flags
         self.running = True
+        self.paused = False
 
     def handle_events(self) -> None:
         """Process input events via InputHandler and handle quit/fire actions."""
@@ -99,6 +100,9 @@ class Game:
         if self.input.toggle_debug_doors_pressed():
             wr = self.renderer.wall_renderer
             wr.show_debug_doors = not getattr(wr, "show_debug_doors", False)
+        if self.input.pause_pressed():
+            # Toggle pause state
+            self.paused = not self.paused
 
     def update(self, dt: float) -> None:
         """Update game state: handle input-driven movement and actions."""
@@ -291,7 +295,8 @@ class Game:
             # Cap the frame rate and compute delta time in seconds
             dt = self.clock.tick(self.fps) / 1000.0
             self.handle_events()
-            self.update(dt)
+            if not self.paused:
+                self.update(dt)
             self.render()
         # Clean up GL resources before quitting
         self.renderer.shutdown()

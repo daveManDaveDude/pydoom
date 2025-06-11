@@ -238,7 +238,9 @@ class CpuWallRenderer(WallRenderer):
                     door_slices.append(slice_uv)
 
         # Apply sliding-door translation & clamping: translate door slices along screen X into the jamb
-        debug_edges = []
+        debug_edges: list[tuple[str, float, float, float]] = []
+        # record original pivot/far-edge and y extents for slice-height & hinge-perspective debug
+        debug_slice_info: list[tuple[float, float, float, float]] = []
         for door_obj, segments in door_slice_infos.items():
             if not segments:
                 continue
@@ -252,6 +254,7 @@ class CpuWallRenderer(WallRenderer):
             ys0 = [seg[:, 1].min() for seg in segments]
             ys1 = [seg[:, 1].max() for seg in segments]
             debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
+            debug_slice_info.append((pivot, far_x, min(ys0), max(ys1)))
 
             # Translate door segments into the jamb, clamping past the hinge
             slide_x = (far_x - pivot) * door_obj.progress
@@ -321,6 +324,21 @@ class CpuWallRenderer(WallRenderer):
                     gl.glVertex2f(mn, pivot)
                     gl.glVertex2f(mx, pivot)
             gl.glEnd()
+
+            # Green lines: hinge pivot and original slice-height extents
+            gl.glColor3f(0.0, 1.0, 0.0)
+            gl.glBegin(gl.GL_LINES)
+            for pivot, far_x, y_min, y_max in debug_slice_info:
+                # vertical hinge line
+                gl.glVertex2f(pivot, y_min)
+                gl.glVertex2f(pivot, y_max)
+                # horizontal slice-height extents
+                gl.glVertex2f(pivot, y_min)
+                gl.glVertex2f(far_x, y_min)
+                gl.glVertex2f(pivot, y_max)
+                gl.glVertex2f(far_x, y_max)
+            gl.glEnd()
+
             gl.glEnable(gl.GL_TEXTURE_2D)
             # Reset line width
             gl.glLineWidth(1.0)

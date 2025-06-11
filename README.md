@@ -89,6 +89,7 @@ Most settings are in `game/config.py`:
 -- **D / Right Arrow**: Strafe right
 -- **Mouse**: Look around (yaw & pitch)
 -- **Spacebar** or **Left Click**: Fire bullet
+-- **P**: Toggle pause/unpause
 -- **X** key or window close: Quit
 
 ---
@@ -152,4 +153,3 @@ Open Source MIT licence
 ## Contact
 
 For questions or suggestions, open an issue or reach out via GitHub discussions.
-
