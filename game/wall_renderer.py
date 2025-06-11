@@ -73,7 +73,9 @@ class CpuWallRenderer(WallRenderer):
         wall_slices: list[np.ndarray] = []
         door_slices: list[np.ndarray] = []
         # Collect door slice segments for slide animation pivot adjustment
-        door_slice_infos = {}
+        door_slice_infos: dict[object, list[np.ndarray]] = {}
+        # Collect perspective wall-slice segments for debug (show underlying wall)
+        persp_slice_infos: dict[object, list[np.ndarray]] = {}
         cos_pa = math.cos(player.angle)
         sin_pa = math.sin(player.angle)
         for i in range(self.w):
@@ -227,6 +229,9 @@ class CpuWallRenderer(WallRenderer):
 
             if cur_tile == TILE_WALL:
                 wall_slices.append(slice_uv)
+                # record underlying wall slice for any doors hit by this ray
+                for door_obj, *_ in door_hits:
+                    persp_slice_infos.setdefault(door_obj, []).append(slice_uv)
             elif cur_tile == TILE_DOOR:
                 door_obj = next(
                     (d for d in world.doors if d.x == map_x and d.y == map_y),
@@ -241,6 +246,8 @@ class CpuWallRenderer(WallRenderer):
         debug_edges: list[tuple[str, float, float, float]] = []
         # record original pivot/far-edge and y extents for slice-height & hinge-perspective debug
         debug_slice_info: list[tuple[float, float, float, float]] = []
+        # perspective wall slice extents for debug comparison
+        debug_persp_info: list[tuple[float, float, float, float]] = []
         for door_obj, segments in door_slice_infos.items():
             if not segments:
                 continue
@@ -255,6 +262,12 @@ class CpuWallRenderer(WallRenderer):
             ys1 = [seg[:, 1].max() for seg in segments]
             debug_edges.append(("x", moving_x, min(ys0), max(ys1)))
             debug_slice_info.append((pivot, far_x, min(ys0), max(ys1)))
+            # record perspective wall slice extents for debug comparison
+            persp_segs = persp_slice_infos.get(door_obj)
+            if persp_segs:
+                wp0 = [seg[:, 1].min() for seg in persp_segs]
+                wp1 = [seg[:, 1].max() for seg in persp_segs]
+                debug_persp_info.append((pivot, far_x, min(wp0), max(wp1)))
 
             # Translate door segments into the jamb, clamping past the hinge
             slide_x = (far_x - pivot) * door_obj.progress
@@ -333,6 +346,17 @@ class CpuWallRenderer(WallRenderer):
                 gl.glVertex2f(pivot, y_min)
                 gl.glVertex2f(pivot, y_max)
                 # horizontal slice-height extents
+                gl.glVertex2f(pivot, y_min)
+                gl.glVertex2f(far_x, y_min)
+                gl.glVertex2f(pivot, y_max)
+                gl.glVertex2f(far_x, y_max)
+            gl.glEnd()
+
+            # Blue lines: perspective wall slice extents for comparison
+            gl.glColor3f(0.0, 0.0, 1.0)
+            gl.glBegin(gl.GL_LINES)
+            for pivot, far_x, y_min, y_max in debug_persp_info:
+                # horizontal perspective wall extents
                 gl.glVertex2f(pivot, y_min)
                 gl.glVertex2f(far_x, y_min)
                 gl.glVertex2f(pivot, y_max)
