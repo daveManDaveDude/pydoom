@@ -128,14 +128,7 @@ class CpuWallRenderer(WallRenderer):
                     hit = True
                     cur_tile = TILE_WALL
                 elif cell == TILE_DOOR:
-                    door_obj = next(
-                        (
-                            d
-                            for d in world.doors
-                            if d.x == map_x and d.y == map_y
-                        ),
-                        None,
-                    )
+                    door_obj = world.door_map.get((map_x, map_y))
                     if door_obj is not None:
                         if door_obj.progress >= 1.0:
                             continue
@@ -233,10 +226,7 @@ class CpuWallRenderer(WallRenderer):
                 for door_obj, *_ in door_hits:
                     persp_slice_infos.setdefault(door_obj, []).append(slice_uv)
             elif cur_tile == TILE_DOOR:
-                door_obj = next(
-                    (d for d in world.doors if d.x == map_x and d.y == map_y),
-                    None,
-                )
+                door_obj = world.door_map.get((map_x, map_y))
                 if door_obj is not None and door_obj.progress > 0.0:
                     door_slice_infos.setdefault(door_obj, []).append(slice_uv)
                 else:

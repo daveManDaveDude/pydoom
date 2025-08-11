@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import json
 import math
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Dict, Tuple
 from .config import (
     WORLD_FILE,
     DEFAULT_ENEMY_HEALTH,
@@ -88,6 +88,8 @@ class World:
         self.enemies = []
         self.sprites = []
         self.doors: List[Door] = []
+        # Fast lookup for doors by grid coordinate
+        self.door_map: Dict[Tuple[int, int], Door] = {}
         if map_grid is not None:
             self.map = map_grid
         else:
@@ -216,7 +218,9 @@ class World:
         for y, row in enumerate(self.map):
             for x, tile in enumerate(row):
                 if tile == TILE_DOOR:
-                    self.doors.append(Door(x, y))
+                    d = Door(x, y)
+                    self.doors.append(d)
+                    self.door_map[(x, y)] = d
 
         # Determine sliding orientation for each door
         for door in self.doors:
@@ -289,9 +293,10 @@ class World:
                     return True
         tile = self.map[ty][tx]
         if tile == TILE_DOOR:
-            for door in self.doors:
-                if door.x == tx and door.y == ty:
-                    return door.state != "open"
+            door = self.door_map.get((tx, ty))
+            if door is not None:
+                return door.state != "open"
+            # If a door tile lacks a Door object, treat as blocking
             return True
         return tile == TILE_WALL
 
@@ -308,13 +313,13 @@ class World:
         if room >= 0:
             return room
         if self.map[iy][ix] == TILE_DOOR:
-            for door in self.doors:
-                # Only allow passage through fully open doors
-                if door.x == ix and door.y == iy and door.state == "open":
-                    for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
-                        nx, ny = ix + dx, iy + dy
-                        if 0 <= nx < self.width and 0 <= ny < self.height:
-                            adj_room = self.room_map[ny][nx]
-                            if adj_room >= 0:
-                                return adj_room
+            # Only allow passage through fully open doors
+            door = self.door_map.get((ix, iy))
+            if door is not None and door.state == "open":
+                for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+                    nx, ny = ix + dx, iy + dy
+                    if 0 <= nx < self.width and 0 <= ny < self.height:
+                        adj_room = self.room_map[ny][nx]
+                        if adj_room >= 0:
+                            return adj_room
         return None
