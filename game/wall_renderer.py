@@ -242,7 +242,7 @@ class CpuWallRenderer(WallRenderer):
                 else:
                     door_slices.append(slice_uv)
 
-        # Apply sliding-door translation & clamping: translate door slices along screen X into the jamb
+        # Apply sliding-door clamping: clip door slices against the moving jamb edge
         debug_edges: list[tuple[str, float, float, float]] = []
         # record original pivot/far-edge and y extents for slice-height & hinge-perspective debug
         debug_slice_info: list[tuple[float, float, float, float]] = []
@@ -257,6 +257,7 @@ class CpuWallRenderer(WallRenderer):
             xs1 = [seg[:, 0].max() for seg in segments]
             pivot = min(xs0) if door_obj.slide_dir == 1 else max(xs1)
             far_x = max(xs1) if door_obj.slide_dir == 1 else min(xs0)
+            # Moving boundary where the visible door edge currently is
             moving_x = pivot + (far_x - pivot) * door_obj.progress
             ys0 = [seg[:, 1].min() for seg in segments]
             ys1 = [seg[:, 1].max() for seg in segments]
@@ -269,12 +270,27 @@ class CpuWallRenderer(WallRenderer):
                 wp1 = [seg[:, 1].max() for seg in persp_segs]
                 debug_persp_info.append((pivot, far_x, min(wp0), max(wp1)))
 
-            # Translate door segments into the jamb, clamping past the hinge
-            slide_x = (far_x - pivot) * door_obj.progress
+            # Clip door segments against the moving edge rather than translating them.
+            # This preserves correct perspective: the door retracts into the jamb
+            # while its slice height remains consistent with distance.
+            # The visible door span is between the moving edge and the far edge.
+            # When progress = 0 -> moving_x == pivot -> full span [far_x, pivot]
+            # When progress = 1 -> moving_x == far_x -> zero width -> hidden
+            left = min(moving_x, far_x)
+            right = max(moving_x, far_x)
+            width = max(right - left, 0.0)
+            # Using left/right covers both slide directions consistently.
             for seg in segments:
-                seg[:, 0] += slide_x
-                min_x, max_x = min(pivot, far_x), max(pivot, far_x)
-                seg[:, 0] = np.clip(seg[:, 0], min_x, max_x)
+                # Clip geometry in screen-space X
+                seg[:, 0] = np.clip(seg[:, 0], left, right)
+                # Re-map U so the texture stays attached to the moving edge
+                if width > 1e-6:
+                    if moving_x <= far_x:
+                        # Moving edge on the left of the span
+                        seg[:, 2] = (seg[:, 0] - left) / width
+                    else:
+                        # Moving edge on the right of the span
+                        seg[:, 2] = (right - seg[:, 0]) / width
 
             door_slices.extend(segments)
 
