@@ -279,18 +279,23 @@ class CpuWallRenderer(WallRenderer):
             left = min(moving_x, far_x)
             right = max(moving_x, far_x)
             width = max(right - left, 0.0)
+            full_span = max(abs(far_x - pivot), 1e-6)
             # Using left/right covers both slide directions consistently.
             for seg in segments:
                 # Clip geometry in screen-space X
                 seg[:, 0] = np.clip(seg[:, 0], left, right)
-                # Re-map U so the texture stays attached to the moving edge
+                # Re-map U to anchor at moving edge but avoid squashing:
+                # map across the original full span, so the visible fraction
+                # shrinks without stretching to [0..1].
                 if width > 1e-6:
                     if moving_x <= far_x:
                         # Moving edge on the left of the span
-                        seg[:, 2] = (seg[:, 0] - left) / width
+                        seg[:, 2] = (seg[:, 0] - left) / full_span
                     else:
                         # Moving edge on the right of the span
-                        seg[:, 2] = (right - seg[:, 0]) / width
+                        seg[:, 2] = (right - seg[:, 0]) / full_span
+                    # Ensure UV remains within [0,1] to avoid wrap
+                    seg[:, 2] = np.clip(seg[:, 2], 0.0, 1.0)
 
             door_slices.extend(segments)
 
